@@ -65,7 +65,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
     child: Row(children: [
       const Icon(Icons.circle, color: AppColors.emerald, size: 9),
       const SizedBox(width: 10),
-      const Expanded(child: Text('IIT ROPAR TRANSIT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1, color: Color(0xFF71717A)))),
+      const Expanded(child: Text('SARTHI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1, color: Color(0xFF71717A)))),
       IconButton(onPressed: _ticketsSheet, icon: Badge(isLabelVisible: _controller.tickets.isNotEmpty, label: Text('${_controller.tickets.where((ticket) => !ticket.isUsed).length}'), child: const Icon(Icons.confirmation_number_outlined, color: AppColors.emerald))),
       OutlinedButton(onPressed: _controller.toggleRole, child: Text(_controller.isDriverView ? 'Passenger' : 'Driver View', style: const TextStyle(fontSize: 11))),
     ]),
