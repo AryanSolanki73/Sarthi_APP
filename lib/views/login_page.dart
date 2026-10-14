@@ -32,12 +32,15 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Loads saved user credentials from the local storage file.
   /// Sets the email and password values in the input controllers.
-  Future<void> _loadSavedCredentials() async {
+  Future<void> _loadSavedCredentials() async 
+  {
     final credentials = await CredentialStorage.loadCredentials();
     if (credentials != null && mounted) {
-      setState(() {
+      setState(() 
+      {
         _emailController.text = credentials['email'] ?? '';
         _passwordController.text = credentials['password'] ?? '';
+        _signIn(_emailController.text.trim() , _passwordController.text);
       });
     }
   }
