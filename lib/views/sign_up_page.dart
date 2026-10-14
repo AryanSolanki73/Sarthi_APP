@@ -18,10 +18,11 @@ class _SignUpPageState extends State<SignUpPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _authController = AuthController(MockAuthService());
+  final _authController = AuthController(FirebaseAuthService());
   bool _hidePassword = true;
   bool _isCreating = false;
 
+  /// Releases the text controllers from memory.
   @override
   void dispose() {
     _nameController.dispose();
@@ -31,21 +32,35 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
+  /// Validates the form and creates a new user account with Firebase.
   Future<void> _createAccount() async {
     FocusScope.of(context).unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _isCreating = true);
-    await _authController.createAccount(
-      name: _nameController.text,
-      email: _emailController.text,
-      password: _passwordController.text,
-    );
-    if (!mounted) return;
-    setState(() => _isCreating = false);
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const TransitHomeView()),
-      (_) => false,
-    );
+    try {
+      await _authController.createAccount(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => const TransitHomeView()),
+        (_) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: const Color(0xFFBA1A1A),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isCreating = false);
+      }
+    }
   }
 
   InputDecoration _decoration(String hint, IconData icon, {Widget? suffix}) =>

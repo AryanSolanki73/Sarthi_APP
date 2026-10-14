@@ -18,7 +18,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _authController = AuthController(MockAuthService());
+  final _authController = AuthController(FirebaseAuthService());
   bool _hidePassword = true;
   bool _isSigningIn = false;
 
@@ -54,33 +54,53 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   final emailRegex = RegExp(
-  r'^[a-zA-Z0-9]+@iitrpr\.ac\.in$',
-  caseSensitive: false,
+    r'^[a-zA-Z0-9._%+-]+@iitrpr\.ac\.in$',
+    caseSensitive: false,
   );
 
   /// Validates the user inputs and authenticates the account.
   /// Saves credentials to local storage and navigates to the home view.
-  Future<void> _signIn(String email , String pass) async 
-  {
+  Future<void> _signIn(String email, String pass) async {
     FocusScope.of(context).unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    if(!emailRegex.hasMatch(email)) return;
+    if (!emailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid @iitrpr.ac.in email address'),
+          backgroundColor: Color(0xFFBA1A1A),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isSigningIn = true);
 
-    // Save credentials to local file so they are loaded next time
-    await CredentialStorage.saveCredentials(
-      email: email,
-      password: pass,
-    );
+    try {
+      // Save credentials to local file so they are loaded next time
+      await CredentialStorage.saveCredentials(
+        email: email,
+        password: pass,
+      );
 
-    await _authController.signIn(email: email, password: pass);
-    if (!mounted) return;
-    setState(() => _isSigningIn = false);
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const TransitHomeView()),
-    );
+      await _authController.signIn(email: email, password: pass);
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => const TransitHomeView()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: const Color(0xFFBA1A1A),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSigningIn = false);
+      }
+    }
   }
 
   /// Builds the user interface for the login page.
