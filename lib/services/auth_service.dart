@@ -79,7 +79,7 @@ class FirebaseAuthService implements AuthService {
     switch (code) {
       case 'user-not-found':
       case 'invalid-credential':
-        return 'Invalid email or password.';
+        return 'Account not registered or invalid password. Please sign up first.';
       case 'wrong-password':
         return 'Incorrect password.';
       case 'email-already-in-use':

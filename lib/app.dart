@@ -64,10 +64,12 @@ class _AuthGateState extends State<_AuthGate> {
               password: password,
             );
           }
+          return FirebaseAuth.instance.currentUser != null;
         } catch (e) {
-          debugPrint('Firebase auto-sign-in notice: $e');
+          debugPrint('Firebase auto-sign-in failed: $e');
+          await CredentialStorage.clearCredentials();
+          return false;
         }
-        return true;
       }
     } catch (_) {
       return false;

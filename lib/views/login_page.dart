@@ -32,15 +32,12 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Loads saved user credentials from the local storage file.
   /// Sets the email and password values in the input controllers.
-  Future<void> _loadSavedCredentials() async 
-  {
+  Future<void> _loadSavedCredentials() async {
     final credentials = await CredentialStorage.loadCredentials();
     if (credentials != null && mounted) {
-      setState(() 
-      {
+      setState(() {
         _emailController.text = credentials['email'] ?? '';
         _passwordController.text = credentials['password'] ?? '';
-        _signIn(_emailController.text.trim() , _passwordController.text);
       });
     }
   }
@@ -77,18 +74,23 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isSigningIn = true);
 
     try {
-      // Save credentials to local file so they are loaded next time
+      // 1. Verify with Firebase FIRST. This rejects unregistered accounts.
+      await _authController.signIn(email: email, password: pass);
+
+      // 2. Only save credentials locally if Firebase sign-in succeeded.
       await CredentialStorage.saveCredentials(
         email: email,
         password: pass,
       );
 
-      await _authController.signIn(email: email, password: pass);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(builder: (_) => const TransitHomeView()),
       );
     } catch (e) {
+      // Clear any invalid saved credentials
+      await CredentialStorage.clearCredentials();
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
