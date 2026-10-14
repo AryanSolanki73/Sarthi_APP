@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sarthi_app/controllers/auth_controller.dart';
 import 'package:sarthi_app/services/auth_service.dart';
+import 'package:sarthi_app/services/credential_storage.dart';
 import 'package:sarthi_app/views/sign_up_page.dart';
 import 'package:sarthi_app/views/transit/transit_home_view.dart';
 
@@ -8,6 +9,7 @@ import 'package:sarthi_app/views/transit/transit_home_view.dart';
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
+  /// Creates the state object for the login page widget.
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -20,6 +22,27 @@ class _LoginPageState extends State<LoginPage> {
   bool _hidePassword = true;
   bool _isSigningIn = false;
 
+  /// Initializes the widget state.
+  /// Calls the procedure to load saved user credentials.
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  /// Loads saved user credentials from the local storage file.
+  /// Sets the email and password values in the input controllers.
+  Future<void> _loadSavedCredentials() async {
+    final credentials = await CredentialStorage.loadCredentials();
+    if (credentials != null && mounted) {
+      setState(() {
+        _emailController.text = credentials['email'] ?? '';
+        _passwordController.text = credentials['password'] ?? '';
+      });
+    }
+  }
+
+  /// Releases the text editing controllers from memory.
   @override
   void dispose() {
     _emailController.dispose();
@@ -27,15 +50,29 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  Future<void> _signIn() async {
+  final emailRegex = RegExp(
+  r'^[a-zA-Z0-9]+@iitrpr\.ac\.in$',
+  caseSensitive: false,
+  );
+
+  /// Validates the user inputs and authenticates the account.
+  /// Saves credentials to local storage and navigates to the home view.
+  Future<void> _signIn(String email , String pass) async 
+  {
     FocusScope.of(context).unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    if(!emailRegex.hasMatch(email)) return;
+
     setState(() => _isSigningIn = true);
-    await _authController.signIn(
-      email: _emailController.text,
-      password: _passwordController.text,
+
+    // Save credentials to local file so they are loaded next time
+    await CredentialStorage.saveCredentials(
+      email: email,
+      password: pass,
     );
+
+    await _authController.signIn(email: email, password: pass);
     if (!mounted) return;
     setState(() => _isSigningIn = false);
     Navigator.of(context).pushReplacement(
@@ -43,6 +80,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  /// Builds the user interface for the login page.
   @override
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
@@ -130,14 +168,19 @@ class _LoginPageState extends State<LoginPage> {
                                 ? 'Show password'
                                 : 'Hide password',
                           ),
-                          onSubmitted: (_) => _signIn(),
+                          onSubmitted: (_) => _signIn(
+                            _emailController.text.trim(),
+                            _passwordController.text,
+                          ),
                         ),
                         const SizedBox(height: 20),
                         SizedBox(
                           width: double.infinity,
                           height: 54,
                           child: FilledButton(
-                            onPressed: _isSigningIn ? null : _signIn,
+                            onPressed: _isSigningIn ? null : () {
+                              _signIn(_emailController.text.trim() , _passwordController.text,);
+                            },
                             style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFF009B6A),
                               foregroundColor: Colors.white,
@@ -202,6 +245,7 @@ class _LoginPageState extends State<LoginPage> {
 class _VehicleMark extends StatelessWidget {
   const _VehicleMark();
 
+  /// Builds the graphical vehicle mark container.
   @override
   Widget build(BuildContext context) => Container(
         width: 72,
@@ -240,6 +284,7 @@ class _AuthTextField extends StatelessWidget {
   final Widget? suffix;
   final ValueChanged<String>? onSubmitted;
 
+  /// Builds the styled text input field widget.
   @override
   Widget build(BuildContext context) => TextFormField(
         controller: controller,
