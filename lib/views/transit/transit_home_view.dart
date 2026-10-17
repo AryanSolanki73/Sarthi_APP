@@ -284,8 +284,9 @@ class _TransitHomeViewState extends State<TransitHomeView> {
 
   Future<void> _hailCart() async {
     await _controller.requestCart();
-    if (mounted)
+    if (mounted) {
       _showMessage('Cart hailed successfully! Nearest driver notified.');
+    }
   }
 
   Widget _busList() => ListView(
