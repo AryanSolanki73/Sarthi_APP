@@ -18,7 +18,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _authController = AuthController(MockAuthService());
+  final _authController = AuthController(FirebaseAuthService());
   bool _hidePassword = true;
   bool _isSigningIn = false;
 
@@ -32,15 +32,12 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Loads saved user credentials from the local storage file.
   /// Sets the email and password values in the input controllers.
-  Future<void> _loadSavedCredentials() async 
-  {
+  Future<void> _loadSavedCredentials() async {
     final credentials = await CredentialStorage.loadCredentials();
     if (credentials != null && mounted) {
-      setState(() 
-      {
+      setState(() {
         _emailController.text = credentials['email'] ?? '';
         _passwordController.text = credentials['password'] ?? '';
-        _signIn(_emailController.text.trim() , _passwordController.text);
       });
     }
   }
@@ -54,33 +51,58 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   final emailRegex = RegExp(
-  r'^[a-zA-Z0-9]+@iitrpr\.ac\.in$',
-  caseSensitive: false,
+    r'^[a-zA-Z0-9._%+-]+@iitrpr\.ac\.in$',
+    caseSensitive: false,
   );
 
   /// Validates the user inputs and authenticates the account.
   /// Saves credentials to local storage and navigates to the home view.
-  Future<void> _signIn(String email , String pass) async 
-  {
+  Future<void> _signIn(String email, String pass) async {
     FocusScope.of(context).unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    if(!emailRegex.hasMatch(email)) return;
+    if (!emailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid @iitrpr.ac.in email address'),
+          backgroundColor: Color(0xFFBA1A1A),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isSigningIn = true);
 
-    // Save credentials to local file so they are loaded next time
-    await CredentialStorage.saveCredentials(
-      email: email,
-      password: pass,
-    );
+    try {
+      // 1. Verify with Firebase FIRST. This rejects unregistered accounts.
+      await _authController.signIn(email: email, password: pass);
 
-    await _authController.signIn(email: email, password: pass);
-    if (!mounted) return;
-    setState(() => _isSigningIn = false);
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const TransitHomeView()),
-    );
+      // 2. Only save credentials locally if Firebase sign-in succeeded.
+      await CredentialStorage.saveCredentials(
+        email: email,
+        password: pass,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => const TransitHomeView()),
+      );
+    } catch (e) {
+      // Clear any invalid saved credentials
+      await CredentialStorage.clearCredentials();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: const Color(0xFFBA1A1A),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSigningIn = false);
+      }
+    }
   }
 
   /// Builds the user interface for the login page.

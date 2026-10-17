@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 import 'app.dart';
 
-/// The entry point where the Flutter application starts running.
-void main() {
-  // runApp attaches the root widget (SarthiApp) to the screen.
+/// Initializes dependencies and starts the Flutter application.
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const SarthiApp());
 }

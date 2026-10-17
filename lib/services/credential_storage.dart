@@ -25,9 +25,8 @@ class CredentialStorage {
         'password': password,
       });
       await file.writeAsString(data, flush: true);
-    } catch (e) {
-      // In case of permission or IO failure, handle gracefully.
-      rethrow;
+    } catch (_) {
+      // In case of permission or IO failure, continue without crashing.
     }
   }
 
