@@ -33,12 +33,14 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
   # Campus map UI. Run `flutter pub get` after pulling this change.
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
   firebase_core: ^4.15.0
   path_provider: ^2.1.6
+  flutter_web_plugins:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
