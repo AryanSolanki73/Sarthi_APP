@@ -280,7 +280,7 @@ class _VehicleMark extends StatelessWidget {
           borderRadius: BorderRadius.circular(23),
         ),
         child: const Icon(
-          Icons.directions_bus_rounded,
+          Icons.directions_bus,
           color: Colors.white,
           size: 37,
         ),

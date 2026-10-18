@@ -37,8 +37,8 @@ dependencies:
   # Campus map UI. Run `flutter pub get` after pulling this change.
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
-  firebase_core: ^4.15.0
-  firebase_auth: ^6.2.0
+  firebase_core: ^5.0.0
+  firebase_auth: ^7.0.0
   path_provider: ^2.1.6
   flutter_web_plugins:
     sdk: flutter

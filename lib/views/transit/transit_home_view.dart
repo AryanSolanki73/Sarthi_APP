@@ -80,7 +80,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
     child: Row(
       children: [
         const Icon(
-          Icons.directions_bus_rounded,
+          Icons.directions_bus,
           color: AppColors.emerald,
           size: 30,
         ),
