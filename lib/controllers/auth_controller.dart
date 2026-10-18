@@ -1,4 +1,5 @@
 import 'package:sarthi_app/models/user_model.dart';
+import 'package:sarthi_app/models/user_profile.dart';
 import 'package:sarthi_app/services/auth_service.dart';
 
 /// Controller: keeps authentication rules and actions out of the UI.
@@ -41,4 +42,6 @@ class AuthController {
 
   Future<UserModel> createAccount({required String name, required String email, required String password}) =>
       _service.createAccount(name: name, email: email, password: password);
+
+  Future<UserProfile?> signInWithGoogle() => _service.signInWithGoogle();
 }

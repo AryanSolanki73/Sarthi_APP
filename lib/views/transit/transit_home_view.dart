@@ -4,6 +4,7 @@ import 'package:sarthi_app/core/app_colors.dart';
 import 'package:sarthi_app/models/bus.dart';
 import 'package:sarthi_app/models/ride_request.dart';
 import 'package:sarthi_app/services/transit_service.dart';
+import 'package:sarthi_app/views/profile_page.dart';
 import 'package:sarthi_app/views/transit/campus_map_view.dart';
 
 /// Main transit screen for both passengers and drivers.
@@ -115,6 +116,18 @@ class _TransitHomeViewState extends State<TransitHomeView> {
             _controller.isDriverView ? 'Passenger' : 'Driver View',
             style: const TextStyle(fontSize: 11),
           ),
+        ),
+        const SizedBox(width: 4),
+        IconButton(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const ProfilePage()),
+          ),
+          icon: const Icon(
+            Icons.account_circle_outlined,
+            color: AppColors.emerald,
+            size: 28,
+          ),
+          tooltip: 'Profile',
         ),
       ],
     ),

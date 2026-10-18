@@ -26,6 +26,6 @@ void main() {
     expect(find.text('Your campus.\nOne easy ride.'), findsOneWidget);
     expect(find.text('Sign in with college email'), findsOneWidget);
     expect(find.text('Sign In'), findsOneWidget);
-    expect(find.text('New to Sarthi? Sign Up'), findsOneWidget);
+    expect(find.text('Sign in with Google'), findsOneWidget);
   });
 }

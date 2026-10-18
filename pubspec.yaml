@@ -42,6 +42,8 @@ dependencies:
   path_provider: ^2.1.6
   flutter_web_plugins:
     sdk: flutter
+  google_sign_in: 6.2.2
+  cloud_firestore: ^7.0.0
 
 dev_dependencies:
   flutter_test:

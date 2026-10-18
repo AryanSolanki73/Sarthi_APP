@@ -1,10 +1,15 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sarthi_app/models/user_model.dart';
+import 'package:sarthi_app/models/user_profile.dart';
 
 /// Contract for authentication requests.
 abstract class AuthService {
   Future<UserModel> signIn({required String email, required String password});
   Future<UserModel> createAccount({required String name, required String email, required String password});
+  Future<UserProfile?> signInWithGoogle();
 }
 
 /// Firebase authentication implementation.
@@ -64,6 +69,15 @@ class FirebaseAuthService implements AuthService {
 
       await user.updateDisplayName(name.trim());
 
+      // Save user profile to Firebase Firestore database
+      final profile = UserProfile(
+        uid: user.uid,
+        name: name.trim(),
+        email: user.email ?? email,
+        role: 'student',
+      );
+      await saveUserToDatabase(profile);
+
       return UserModel(
         name: name.trim(),
         email: user.email ?? email,
@@ -71,6 +85,69 @@ class FirebaseAuthService implements AuthService {
       );
     } on FirebaseAuthException catch (e) {
       throw Exception(_mapFirebaseError(e.code));
+    }
+  }
+
+  /// Signs in or registers the user using Google Sign-In.
+  @override
+  Future<UserProfile?> signInWithGoogle() async {
+    try {
+      // 1. Trigger the Google sign-in flow
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        // User cancelled the Google sign-in dialog
+        return null;
+      }
+
+      // 2. Obtain auth details from the request
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // 3. Create a credential for Firebase Auth
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // 4. Sign in to Firebase with the Google credential
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final User? user = userCredential.user;
+
+      if (user == null) {
+        throw Exception('Failed to sign in with Google.');
+      }
+
+      // 5. Create user profile with data populated from Google account
+      final profile = UserProfile(
+        uid: user.uid,
+        name: user.displayName ?? googleUser.displayName ?? 'Student',
+        email: user.email ?? googleUser.email,
+        photoUrl: user.photoURL ?? googleUser.photoUrl,
+        role: 'student',
+      );
+
+      // 6. Store user in Firebase database
+      await saveUserToDatabase(profile);
+
+      return profile;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_mapFirebaseError(e.code));
+    } catch (e) {
+      if (e.toString().contains('sign_in_canceled') || e.toString().contains('cancelled')) {
+        return null;
+      }
+      throw Exception('Google Sign-In failed: ${e.toString().replaceAll('Exception: ', '')}');
+    }
+  }
+
+  /// Stores or updates user profile in Firebase Firestore database.
+  Future<void> saveUserToDatabase(UserProfile profile) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(profile.uid)
+          .set(profile.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Note: Could not save user profile to Firestore: $e');
     }
   }
 
@@ -98,15 +175,24 @@ class FirebaseAuthService implements AuthService {
 
 /// Temporary mock authentication service for testing.
 class MockAuthService implements AuthService {
-  /// Signs the user in with mock credentials.
   @override
   Future<UserModel> signIn({required String email, required String password}) => Future.value(
     UserModel(email: email.trim().toLowerCase(), role: UserRole.student),
   );
 
-  /// Creates a mock user account.
   @override
   Future<UserModel> createAccount({required String name, required String email, required String password}) => Future.value(
     UserModel(name: name.trim(), email: email.trim().toLowerCase(), role: UserRole.student),
+  );
+
+  @override
+  Future<UserProfile?> signInWithGoogle() => Future.value(
+    UserProfile(
+      uid: 'mock_google_uid',
+      name: 'Google Student',
+      email: 'student@iitrpr.ac.in',
+      photoUrl: null,
+      role: 'student',
+    ),
   );
 }
