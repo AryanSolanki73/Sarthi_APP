@@ -47,6 +47,12 @@ class _AuthGateState extends State<_AuthGate> {
   /// Reads saved user credentials from local storage and authenticates the user.
   Future<bool> _checkSavedLogin() async {
     try {
+      // 1. If Firebase already has an active session (e.g. from Google Sign-In)
+      if (FirebaseAuth.instance.currentUser != null) {
+        return true;
+      }
+
+      // 2. Otherwise try restoring saved email/password credentials
       final saved = await CredentialStorage.loadCredentials();
       if (saved == null) {
         return false;

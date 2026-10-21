@@ -4,6 +4,7 @@ import 'package:sarthi_app/services/auth_service.dart';
 import 'package:sarthi_app/services/credential_storage.dart';
 import 'package:sarthi_app/views/sign_up_page.dart';
 import 'package:sarthi_app/views/transit/transit_home_view.dart';
+import 'package:sarthi_app/views/widgets/google_logo_icon.dart';
 
 /// Email-and-password sign-in screen.
 class LoginPage extends StatefulWidget {
@@ -21,6 +22,7 @@ class _LoginPageState extends State<LoginPage> {
   final _authController = AuthController(FirebaseAuthService());
   bool _hidePassword = true;
   bool _isSigningIn = false;
+  bool _isGoogleSigningIn = false;
 
   /// Initializes the widget state.
   /// Calls the procedure to load saved user credentials.
@@ -101,6 +103,37 @@ class _LoginPageState extends State<LoginPage> {
     } finally {
       if (mounted) {
         setState(() => _isSigningIn = false);
+      }
+    }
+  }
+
+  /// Signs the user in using Google authentication via Firebase.
+  Future<void> _signInWithGoogle() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _isGoogleSigningIn = true);
+
+    try {
+      final user = await _authController.signInWithGoogle();
+      if (user == null) {
+        // Sign-in cancelled by user
+        return;
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => const TransitHomeView()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: const Color(0xFFBA1A1A),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isGoogleSigningIn = false);
       }
     }
   }
@@ -203,9 +236,14 @@ class _LoginPageState extends State<LoginPage> {
                           width: double.infinity,
                           height: 54,
                           child: FilledButton(
-                            onPressed: _isSigningIn ? null : () {
-                              _signIn(_emailController.text.trim() , _passwordController.text,);
-                            },
+                            onPressed: (_isSigningIn || _isGoogleSigningIn)
+                                ? null
+                                : () {
+                                    _signIn(
+                                      _emailController.text.trim(),
+                                      _passwordController.text,
+                                    );
+                                  },
                             style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFF009B6A),
                               foregroundColor: Colors.white,
@@ -228,6 +266,64 @@ class _LoginPageState extends State<LoginPage> {
                                       fontSize: 17,
                                       fontWeight: FontWeight.w700,
                                     ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: const [
+                            Expanded(child: Divider(color: Color(0xFFE0E6E3))),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 14),
+                              child: Text(
+                                'OR',
+                                style: TextStyle(
+                                  color: Color(0xFF838B88),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Color(0xFFE0E6E3))),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 54,
+                          child: OutlinedButton(
+                            onPressed: (_isSigningIn || _isGoogleSigningIn)
+                                ? null
+                                : _signInWithGoogle,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF202724),
+                              side: const BorderSide(color: Color(0xFFCFD6D3)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                            ),
+                            child: _isGoogleSigningIn
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(
+                                      color: Color(0xFF009B6A),
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: const [
+                                      GoogleLogoIcon(size: 20),
+                                      SizedBox(width: 12),
+                                      Text(
+                                        'Continue with Google',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                           ),
                         ),
