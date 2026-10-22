@@ -8,9 +8,16 @@ class CredentialStorage {
   static const String _fileName = 'credentials.json';
 
   /// Returns the credentials file object from local app storage.
-  static Future<File> _getFile() async {
-    final directory = await getApplicationDocumentsDirectory();
-    return File('${directory.path}/$_fileName');
+  static Future<File?> _getFile() async {
+    try {
+      if (Platform.environment.containsKey('FLUTTER_TEST')) {
+        return null;
+      }
+      final directory = await getApplicationDocumentsDirectory();
+      return File('${directory.path}/$_fileName');
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Saves the email and password to the local JSON file.
@@ -20,6 +27,7 @@ class CredentialStorage {
   }) async {
     try {
       final file = await _getFile();
+      if (file == null) return;
       final data = jsonEncode({
         'email': email,
         'password': password,
@@ -34,7 +42,7 @@ class CredentialStorage {
   static Future<Map<String, String>?> loadCredentials() async {
     try {
       final file = await _getFile();
-      if (!await file.exists()) {
+      if (file == null || !await file.exists()) {
         return null;
       }
 
@@ -61,7 +69,7 @@ class CredentialStorage {
   static Future<void> clearCredentials() async {
     try {
       final file = await _getFile();
-      if (await file.exists()) {
+      if (file != null && await file.exists()) {
         await file.delete();
       }
     } catch (_) {}

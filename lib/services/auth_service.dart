@@ -1,12 +1,18 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sarthi_app/models/user_model.dart';
+import 'package:sarthi_app/models/user_profile.dart';
 
 /// Contract for authentication requests.
 abstract class AuthService {
   Future<UserModel> signIn({required String email, required String password});
-  Future<UserModel> createAccount({required String name, required String email, required String password});
+  Future<UserModel> createAccount({
+    required String name,
+    required String email,
+    required String password,
+  });
   Future<UserModel?> signInWithGoogle();
   Future<void> signOut();
 }
@@ -14,7 +20,7 @@ abstract class AuthService {
 /// Firebase authentication implementation.
 class FirebaseAuthService implements AuthService {
   FirebaseAuthService({FirebaseAuth? firebaseAuth})
-      : _customAuth = firebaseAuth;
+    : _customAuth = firebaseAuth;
 
   final FirebaseAuth? _customAuth;
   bool _googleSignInInitialized = false;
@@ -29,9 +35,7 @@ class FirebaseAuthService implements AuthService {
 
   Future<void> _ensureGoogleSignInInitialized() async {
     if (!_googleSignInInitialized) {
-      await GoogleSignIn.instance.initialize(
-        serverClientId: serverClientId,
-      );
+      await GoogleSignIn.instance.initialize(serverClientId: serverClientId);
       _googleSignInInitialized = true;
     }
   }
@@ -83,6 +87,15 @@ class FirebaseAuthService implements AuthService {
 
       await user.updateDisplayName(name.trim());
 
+      // Save user profile to Firebase Firestore database
+      final profile = UserProfile(
+        uid: user.uid,
+        name: name.trim(),
+        email: user.email ?? email,
+        role: 'student',
+      );
+      await saveUserToDatabase(profile);
+
       return UserModel(
         name: name.trim(),
         email: user.email ?? email,
@@ -93,76 +106,73 @@ class FirebaseAuthService implements AuthService {
     }
   }
 
-  /// Signs the user in using Google credentials with Firebase.
+  /// Signs in or registers the user using Google Sign-In.
   @override
-  Future<UserModel?> signInWithGoogle() async {
+  Future<UserProfile?> signInWithGoogle() async {
     try {
-      UserCredential userCredential;
-
-      if (kIsWeb) {
-        final GoogleAuthProvider googleProvider = GoogleAuthProvider();
-        userCredential = await _auth.signInWithPopup(googleProvider);
-      } else {
-        await _ensureGoogleSignInInitialized();
-        final GoogleSignInAccount account =
-            await GoogleSignIn.instance.authenticate();
-        final GoogleSignInAuthentication googleAuth = account.authentication;
-
-        final AuthCredential credential = GoogleAuthProvider.credential(
-          idToken: googleAuth.idToken,
-        );
-
-        userCredential = await _auth.signInWithCredential(credential);
+      // 1. Trigger the Google sign-in flow
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        // User cancelled the Google sign-in dialog
+        return null;
       }
 
-      final user = userCredential.user;
-      if (user == null) {
-        throw Exception('User authentication failed.');
-      }
+      // 2. Obtain auth details from the request
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
-      return UserModel(
-        name: user.displayName,
-        email: user.email ?? '',
-        role: UserRole.student,
+      // 3. Create a credential for Firebase Auth
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
-    } on GoogleSignInException catch (e) {
-      if (e.code == GoogleSignInExceptionCode.canceled ||
-          e.code == GoogleSignInExceptionCode.interrupted) {
-        return null;
+
+      // 4. Sign in to Firebase with the Google credential
+      final UserCredential userCredential = await _auth.signInWithCredential(
+        credential,
+      );
+      final User? user = userCredential.user;
+
+      if (user == null) {
+        throw Exception('Failed to sign in with Google.');
       }
-      final desc = e.description ?? e.code.name;
-      if (desc.contains('serverClientId')) {
-        throw Exception(
-          'Missing Web Client ID. Please re-download google-services.json from Firebase Console or set serverClientId in auth_service.dart',
-        );
-      }
-      throw Exception('Google sign-in error: $desc');
+
+      // 5. Create user profile with data populated from Google account
+      final profile = UserProfile(
+        uid: user.uid,
+        name: user.displayName ?? googleUser.displayName ?? 'Student',
+        email: user.email ?? googleUser.email,
+        photoUrl: user.photoURL ?? googleUser.photoUrl,
+        role: 'student',
+      );
+
+      // 6. Store user in Firebase database
+      await saveUserToDatabase(profile);
+
+      return profile;
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'popup-closed-by-user' ||
-          e.code == 'cancelled-popup-request') {
-        return null;
-      }
       throw Exception(_mapFirebaseError(e.code));
     } catch (e) {
-      final msg = e.toString().toLowerCase();
-      if (msg.contains('canceled') ||
-          msg.contains('cancelled') ||
-          msg.contains('abort')) {
+      if (e.toString().contains('sign_in_canceled') ||
+          e.toString().contains('cancelled')) {
         return null;
       }
-      rethrow;
+      throw Exception(
+        'Google Sign-In failed: ${e.toString().replaceAll('Exception: ', '')}',
+      );
     }
   }
 
-  /// Signs out of Firebase and Google.
-  @override
-  Future<void> signOut() async {
+  /// Stores or updates user profile in Firebase Firestore database.
+  Future<void> saveUserToDatabase(UserProfile profile) async {
     try {
-      if (!kIsWeb) {
-        await GoogleSignIn.instance.signOut();
-      }
-    } catch (_) {}
-    await _auth.signOut();
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(profile.uid)
+          .set(profile.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Note: Could not save user profile to Firestore: $e');
+    }
   }
 
   /// Converts Firebase error codes to readable user messages.
@@ -200,29 +210,33 @@ class FirebaseAuthService implements AuthService {
 
 /// Temporary mock authentication service for testing.
 class MockAuthService implements AuthService {
-  /// Signs the user in with mock credentials.
   @override
-  Future<UserModel> signIn({required String email, required String password}) => Future.value(
-    UserModel(email: email.trim().toLowerCase(), role: UserRole.student),
-  );
+  Future<UserModel> signIn({required String email, required String password}) =>
+      Future.value(
+        UserModel(email: email.trim().toLowerCase(), role: UserRole.student),
+      );
 
-  /// Creates a mock user account.
   @override
-  Future<UserModel> createAccount({required String name, required String email, required String password}) => Future.value(
-    UserModel(name: name.trim(), email: email.trim().toLowerCase(), role: UserRole.student),
-  );
-
-  /// Simulates a successful Google sign-in.
-  @override
-  Future<UserModel?> signInWithGoogle() => Future.value(
-    const UserModel(
-      name: 'Google Student',
-      email: 'student@iitrpr.ac.in',
+  Future<UserModel> createAccount({
+    required String name,
+    required String email,
+    required String password,
+  }) => Future.value(
+    UserModel(
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
       role: UserRole.student,
     ),
   );
 
-  /// Simulates sign out.
   @override
-  Future<void> signOut() => Future.value();
+  Future<UserProfile?> signInWithGoogle() => Future.value(
+    UserProfile(
+      uid: 'mock_google_uid',
+      name: 'Google Student',
+      email: 'student@iitrpr.ac.in',
+      photoUrl: null,
+      role: 'student',
+    ),
+  );
 }

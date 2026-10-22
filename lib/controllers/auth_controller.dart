@@ -1,4 +1,5 @@
 import 'package:sarthi_app/models/user_model.dart';
+import 'package:sarthi_app/models/user_profile.dart';
 import 'package:sarthi_app/services/auth_service.dart';
 
 /// Controller: keeps authentication rules and actions out of the UI.
@@ -27,7 +28,8 @@ class AuthController {
   }
 
   String? validatePassword(String? value) {
-    if ((value?.length ?? 0) < 6) return 'Password must be at least 6 characters';
+    if ((value?.length ?? 0) < 6)
+      return 'Password must be at least 6 characters';
     return null;
   }
 
@@ -39,10 +41,11 @@ class AuthController {
   Future<UserModel> signIn({required String email, required String password}) =>
       _service.signIn(email: email, password: password);
 
-  Future<UserModel> createAccount({required String name, required String email, required String password}) =>
-      _service.createAccount(name: name, email: email, password: password);
+  Future<UserModel> createAccount({
+    required String name,
+    required String email,
+    required String password,
+  }) => _service.createAccount(name: name, email: email, password: password);
 
-  Future<UserModel?> signInWithGoogle() => _service.signInWithGoogle();
-
-  Future<void> signOut() => _service.signOut();
+  Future<UserProfile?> signInWithGoogle() => _service.signInWithGoogle();
 }
