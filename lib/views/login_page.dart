@@ -3,6 +3,7 @@ import 'package:sarthi_app/controllers/auth_controller.dart';
 import 'package:sarthi_app/services/auth_service.dart';
 import 'package:sarthi_app/services/credential_storage.dart';
 import 'package:sarthi_app/views/transit/transit_home_view.dart';
+import 'package:sarthi_app/views/widgets/google_logo_icon.dart';
 
 /// Email-and-password sign-in screen.
 class LoginPage extends StatefulWidget {
@@ -106,10 +107,7 @@ class _LoginPageState extends State<LoginPage> {
       await _authController.signIn(email: email, password: pass);
 
       // 2. Only save credentials locally if Firebase sign-in succeeded.
-      await CredentialStorage.saveCredentials(
-        email: email,
-        password: pass,
-      );
+      await CredentialStorage.saveCredentials(email: email, password: pass);
 
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -129,6 +127,37 @@ class _LoginPageState extends State<LoginPage> {
     } finally {
       if (mounted) {
         setState(() => _isSigningIn = false);
+      }
+    }
+  }
+
+  /// Signs the user in using Google authentication via Firebase.
+  Future<void> _signInWithGoogle() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _isGoogleSigningIn = true);
+
+    try {
+      final user = await _authController.signInWithGoogle();
+      if (user == null) {
+        // Sign-in cancelled by user
+        return;
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => const TransitHomeView()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: const Color(0xFFBA1A1A),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isGoogleSigningIn = false);
       }
     }
   }
@@ -231,9 +260,14 @@ class _LoginPageState extends State<LoginPage> {
                           width: double.infinity,
                           height: 54,
                           child: FilledButton(
-                            onPressed: _isSigningIn ? null : () {
-                              _signIn(_emailController.text.trim() , _passwordController.text,);
-                            },
+                            onPressed: (_isSigningIn || _isGoogleSigningIn)
+                                ? null
+                                : () {
+                                    _signIn(
+                                      _emailController.text.trim(),
+                                      _passwordController.text,
+                                    );
+                                  },
                             style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFF009B6A),
                               foregroundColor: Colors.white,
@@ -282,7 +316,9 @@ class _LoginPageState extends State<LoginPage> {
                           width: double.infinity,
                           height: 52,
                           child: OutlinedButton(
-                            onPressed: (_isSigningIn || _isGoogleLoading) ? null : _signInWithGoogle,
+                            onPressed: (_isSigningIn || _isGoogleLoading)
+                                ? null
+                                : _signInWithGoogle,
                             style: OutlinedButton.styleFrom(
                               backgroundColor: Colors.white,
                               side: const BorderSide(color: Color(0xFFD1D5DB)),
@@ -349,18 +385,14 @@ class _VehicleMark extends StatelessWidget {
   /// Builds the graphical vehicle mark container.
   @override
   Widget build(BuildContext context) => Container(
-        width: 72,
-        height: 72,
-        decoration: BoxDecoration(
-          color: const Color(0xFF009B6A),
-          borderRadius: BorderRadius.circular(23),
-        ),
-        child: const Icon(
-          Icons.directions_bus,
-          color: Colors.white,
-          size: 37,
-        ),
-      );
+    width: 72,
+    height: 72,
+    decoration: BoxDecoration(
+      color: const Color(0xFF009B6A),
+      borderRadius: BorderRadius.circular(23),
+    ),
+    child: const Icon(Icons.directions_bus, color: Colors.white, size: 37),
+  );
 }
 
 /// Shared styled field used by the login and account-creation screens.
@@ -388,26 +420,26 @@ class _AuthTextField extends StatelessWidget {
   /// Builds the styled text input field widget.
   @override
   Widget build(BuildContext context) => TextFormField(
-        controller: controller,
-        validator: validator,
-        keyboardType: keyboardType,
-        obscureText: obscureText,
-        onFieldSubmitted: onSubmitted,
-        decoration: InputDecoration(
-          hintText: hintText,
-          prefixIcon: Icon(icon),
-          suffixIcon: suffix,
-          filled: true,
-          fillColor: const Color(0xFFF3F4F3),
-          contentPadding: const EdgeInsets.symmetric(vertical: 18),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide.none,
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: const BorderSide(color: Color(0xFFBA1A1A)),
-          ),
-        ),
-      );
+    controller: controller,
+    validator: validator,
+    keyboardType: keyboardType,
+    obscureText: obscureText,
+    onFieldSubmitted: onSubmitted,
+    decoration: InputDecoration(
+      hintText: hintText,
+      prefixIcon: Icon(icon),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: const Color(0xFFF3F4F3),
+      contentPadding: const EdgeInsets.symmetric(vertical: 18),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide.none,
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(color: Color(0xFFBA1A1A)),
+      ),
+    ),
+  );
 }

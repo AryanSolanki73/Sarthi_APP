@@ -28,7 +28,8 @@ class AuthController {
   }
 
   String? validatePassword(String? value) {
-    if ((value?.length ?? 0) < 6) return 'Password must be at least 6 characters';
+    if ((value?.length ?? 0) < 6)
+      return 'Password must be at least 6 characters';
     return null;
   }
 
@@ -40,8 +41,11 @@ class AuthController {
   Future<UserModel> signIn({required String email, required String password}) =>
       _service.signIn(email: email, password: password);
 
-  Future<UserModel> createAccount({required String name, required String email, required String password}) =>
-      _service.createAccount(name: name, email: email, password: password);
+  Future<UserModel> createAccount({
+    required String name,
+    required String email,
+    required String password,
+  }) => _service.createAccount(name: name, email: email, password: password);
 
   Future<UserProfile?> signInWithGoogle() => _service.signInWithGoogle();
 }

@@ -8,19 +8,37 @@ import 'package:sarthi_app/models/user_profile.dart';
 /// Contract for authentication requests.
 abstract class AuthService {
   Future<UserModel> signIn({required String email, required String password});
-  Future<UserModel> createAccount({required String name, required String email, required String password});
-  Future<UserProfile?> signInWithGoogle();
+  Future<UserModel> createAccount({
+    required String name,
+    required String email,
+    required String password,
+  });
+  Future<UserModel?> signInWithGoogle();
+  Future<void> signOut();
 }
 
 /// Firebase authentication implementation.
 class FirebaseAuthService implements AuthService {
   FirebaseAuthService({FirebaseAuth? firebaseAuth})
-      : _customAuth = firebaseAuth;
+    : _customAuth = firebaseAuth;
 
   final FirebaseAuth? _customAuth;
+  bool _googleSignInInitialized = false;
+
+  /// Web Client ID from Firebase Console / Google Cloud Credentials.
+  /// If set, this overrides or provides the serverClientId needed on Android.
+  /// (e.g. '751583488405-xxxxxxxxxxxx.apps.googleusercontent.com')
+  static const String? serverClientId = null;
 
   /// Returns the Firebase Auth instance lazily.
   FirebaseAuth get _auth => _customAuth ?? FirebaseAuth.instance;
+
+  Future<void> _ensureGoogleSignInInitialized() async {
+    if (!_googleSignInInitialized) {
+      await GoogleSignIn.instance.initialize(serverClientId: serverClientId);
+      _googleSignInInitialized = true;
+    }
+  }
 
   /// Signs the user into Firebase using email and password.
   @override
@@ -100,7 +118,8 @@ class FirebaseAuthService implements AuthService {
       }
 
       // 2. Obtain auth details from the request
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       // 3. Create a credential for Firebase Auth
       final OAuthCredential credential = GoogleAuthProvider.credential(
@@ -109,7 +128,9 @@ class FirebaseAuthService implements AuthService {
       );
 
       // 4. Sign in to Firebase with the Google credential
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final UserCredential userCredential = await _auth.signInWithCredential(
+        credential,
+      );
       final User? user = userCredential.user;
 
       if (user == null) {
@@ -132,10 +153,13 @@ class FirebaseAuthService implements AuthService {
     } on FirebaseAuthException catch (e) {
       throw Exception(_mapFirebaseError(e.code));
     } catch (e) {
-      if (e.toString().contains('sign_in_canceled') || e.toString().contains('cancelled')) {
+      if (e.toString().contains('sign_in_canceled') ||
+          e.toString().contains('cancelled')) {
         return null;
       }
-      throw Exception('Google Sign-In failed: ${e.toString().replaceAll('Exception: ', '')}');
+      throw Exception(
+        'Google Sign-In failed: ${e.toString().replaceAll('Exception: ', '')}',
+      );
     }
   }
 
@@ -167,6 +191,17 @@ class FirebaseAuthService implements AuthService {
         return 'Invalid email address format.';
       case 'user-disabled':
         return 'This user account has been disabled.';
+      case 'popup-closed-by-user':
+      case 'cancelled-popup-request':
+        return 'Google sign-in was cancelled.';
+      case 'popup-blocked':
+        return 'The sign-in popup was blocked by your browser. Please allow popups and try again.';
+      case 'account-exists-with-different-credential':
+        return 'This email is already registered using another sign-in method.';
+      case 'operation-not-allowed':
+        return 'Google sign-in is not enabled in Firebase Console. Please enable Google in Authentication > Sign-in method.';
+      case 'network-request-failed':
+        return 'Network error. Please check your internet connection.';
       default:
         return 'Authentication failed. Please check your network and try again.';
     }
@@ -176,13 +211,22 @@ class FirebaseAuthService implements AuthService {
 /// Temporary mock authentication service for testing.
 class MockAuthService implements AuthService {
   @override
-  Future<UserModel> signIn({required String email, required String password}) => Future.value(
-    UserModel(email: email.trim().toLowerCase(), role: UserRole.student),
-  );
+  Future<UserModel> signIn({required String email, required String password}) =>
+      Future.value(
+        UserModel(email: email.trim().toLowerCase(), role: UserRole.student),
+      );
 
   @override
-  Future<UserModel> createAccount({required String name, required String email, required String password}) => Future.value(
-    UserModel(name: name.trim(), email: email.trim().toLowerCase(), role: UserRole.student),
+  Future<UserModel> createAccount({
+    required String name,
+    required String email,
+    required String password,
+  }) => Future.value(
+    UserModel(
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      role: UserRole.student,
+    ),
   );
 
   @override

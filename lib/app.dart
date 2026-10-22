@@ -11,13 +11,13 @@ class SarthiApp extends StatelessWidget {
   /// Builds the root MaterialApp configuration for the application.
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Sarthi',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: AppColors.emerald),
-          scaffoldBackgroundColor: AppColors.background,
-          useMaterial3: true,
-        ),
-        home: home ?? const SplashScreen(),
-      );
+    title: 'Sarthi',
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData(
+      colorScheme: ColorScheme.fromSeed(seedColor: AppColors.emerald),
+      scaffoldBackgroundColor: AppColors.background,
+      useMaterial3: true,
+    ),
+    home: home ?? const SplashScreen(),
+  );
 }
