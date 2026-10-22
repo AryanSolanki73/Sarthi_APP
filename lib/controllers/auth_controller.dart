@@ -41,4 +41,8 @@ class AuthController {
 
   Future<UserModel> createAccount({required String name, required String email, required String password}) =>
       _service.createAccount(name: name, email: email, password: password);
+
+  Future<UserModel?> signInWithGoogle() => _service.signInWithGoogle();
+
+  Future<void> signOut() => _service.signOut();
 }
