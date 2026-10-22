@@ -28,8 +28,9 @@ class AuthController {
   }
 
   String? validatePassword(String? value) {
-    if ((value?.length ?? 0) < 6)
+    if ((value?.length ?? 0) < 6) {
       return 'Password must be at least 6 characters';
+    }
     return null;
   }
 

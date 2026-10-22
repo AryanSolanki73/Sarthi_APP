@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Sarthi Mobile App",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "Sarthi Admin Portal (Chrome)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/admin/main_admin.dart",
+      "deviceId": "chrome"
+    },
+    {
+      "name": "Sarthi Admin Portal (Edge)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/admin/main_admin.dart",
+      "deviceId": "edge"
+    }
+  ]
+}

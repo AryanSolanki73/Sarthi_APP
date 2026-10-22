@@ -13,7 +13,7 @@ abstract class AuthService {
     required String email,
     required String password,
   });
-  Future<UserModel?> signInWithGoogle();
+  Future<UserProfile?> signInWithGoogle();
   Future<void> signOut();
 }
 
@@ -23,22 +23,9 @@ class FirebaseAuthService implements AuthService {
     : _customAuth = firebaseAuth;
 
   final FirebaseAuth? _customAuth;
-  bool _googleSignInInitialized = false;
-
-  /// Web Client ID from Firebase Console / Google Cloud Credentials.
-  /// If set, this overrides or provides the serverClientId needed on Android.
-  /// (e.g. '751583488405-xxxxxxxxxxxx.apps.googleusercontent.com')
-  static const String? serverClientId = null;
 
   /// Returns the Firebase Auth instance lazily.
   FirebaseAuth get _auth => _customAuth ?? FirebaseAuth.instance;
-
-  Future<void> _ensureGoogleSignInInitialized() async {
-    if (!_googleSignInInitialized) {
-      await GoogleSignIn.instance.initialize(serverClientId: serverClientId);
-      _googleSignInInitialized = true;
-    }
-  }
 
   /// Signs the user into Firebase using email and password.
   @override
@@ -206,6 +193,14 @@ class FirebaseAuthService implements AuthService {
         return 'Authentication failed. Please check your network and try again.';
     }
   }
+
+  @override
+  Future<void> signOut() async {
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {}
+    await _auth.signOut();
+  }
 }
 
 /// Temporary mock authentication service for testing.
@@ -239,4 +234,7 @@ class MockAuthService implements AuthService {
       role: 'student',
     ),
   );
+
+  @override
+  Future<void> signOut() async {}
 }
