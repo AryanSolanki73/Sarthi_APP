@@ -1,70 +1,275 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sarthi_app/models/bus.dart';
+import 'package:sarthi_app/models/cart_location.dart';
 import 'package:sarthi_app/models/ride_request.dart';
 import 'package:sarthi_app/models/ticket.dart';
 
-/// Contract between the app and the future transit backend.
-///
-/// Replace [MockTransitService] with an HTTP implementation later. Views and
-/// controllers will continue using this interface and will not need API code.
+/// Contract for passenger transit services powered by Firebase.
 abstract class TransitService {
+  Stream<List<Bus>> streamBuses();
   Future<List<Bus>> fetchBuses();
-  Future<List<RideRequest>> fetchRideRequests();
-  Future<RideRequest> createRideRequest({required String pickup, required String drop});
-  Future<void> acceptRideRequest(String requestId);
+  Stream<List<CartLocation>> streamCartLocations();
+  Stream<List<RideRequest>> streamUserRides();
+  Future<RideRequest> createRideRequest({
+    required String pickup,
+    required String drop,
+  });
+  Future<void> cancelRideRequest(String requestId);
   Future<Ticket> bookBus(Bus bus);
-  Future<Ticket?> findTicket(String ticketId);
-  Future<void> markTicketUsed(Ticket ticket);
+  Stream<List<Ticket>> streamUserTickets();
+  Future<void> seedInitialDataIfEmpty();
 }
 
-/// Temporary in-memory data source for frontend development.
-class MockTransitService implements TransitService {
-  final _buses = <Bus>[
-    Bus(id: 'bus-1', route: 'Main Campus → Rupnagar City Centre', departureTime: '02:30 PM', availableSeats: 14, registrationNumber: 'PB-12-A-4019'),
-    Bus(id: 'bus-2', route: 'Main Campus → Morinda Railway Station', departureTime: '04:15 PM', availableSeats: 6, registrationNumber: 'PB-12-B-8821'),
-    Bus(id: 'bus-3', route: 'Main Campus → Chandigarh ISBT (Weekend)', departureTime: '06:00 PM', availableSeats: 0, registrationNumber: 'PB-12-C-1092'),
-  ];
-  final _requests = <RideRequest>[
-    RideRequest(id: 'request-1', pickup: 'Satlej Hostel', drop: 'JC Bose Block'),
-    RideRequest(id: 'request-2', pickup: 'Beas Hostel', drop: 'Central Library', createdLabel: '2 mins ago'),
-  ];
-  final _tickets = <Ticket>[];
+/// Firebase Firestore implementation of [TransitService].
+/// Manages real-time collections for:
+/// - `buses` (scheduled bus routes & seat counts)
+/// - `rides` (student EV cart requests & live status)
+/// - `locations` (live EV cart coordinates & battery status)
+/// - `tickets` (student booked bus tickets)
+class FirebaseTransitService implements TransitService {
+  FirebaseTransitService({
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _auth = auth ?? FirebaseAuth.instance;
 
-  @override
-  Future<List<Bus>> fetchBuses() async => List.of(_buses);
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
 
-  @override
-  Future<List<RideRequest>> fetchRideRequests() async => List.of(_requests);
+  CollectionReference<Map<String, dynamic>> get _busesRef =>
+      _firestore.collection('buses');
+  CollectionReference<Map<String, dynamic>> get _ridesRef =>
+      _firestore.collection('rides');
+  CollectionReference<Map<String, dynamic>> get _locationsRef =>
+      _firestore.collection('locations');
+  CollectionReference<Map<String, dynamic>> get _ticketsRef =>
+      _firestore.collection('tickets');
 
+  String get _currentUserId => _auth.currentUser?.uid ?? 'guest';
+  String get _currentUserName =>
+      _auth.currentUser?.displayName ?? 'Student';
+  String get _currentUserEmail => _auth.currentUser?.email ?? '';
+
+  /// Real-time stream of available scheduled buses from Firestore.
   @override
-  Future<RideRequest> createRideRequest({required String pickup, required String drop}) async {
-    final request = RideRequest(id: 'request-${DateTime.now().microsecondsSinceEpoch}', pickup: pickup, drop: drop);
-    _requests.insert(0, request);
-    return request;
+  Stream<List<Bus>> streamBuses() {
+    return _busesRef.snapshots().map((snapshot) {
+      return snapshot.docs
+          .map((doc) => Bus.fromDoc(doc))
+          .where((bus) => bus.isActive)
+          .toList();
+    });
   }
 
+  /// One-time fetch of scheduled buses.
   @override
-  Future<void> acceptRideRequest(String requestId) async {
-    _requests.removeWhere((request) => request.id == requestId);
+  Future<List<Bus>> fetchBuses() async {
+    final snapshot = await _busesRef.get();
+    if (snapshot.docs.isEmpty) {
+      await seedInitialDataIfEmpty();
+      final fresh = await _busesRef.get();
+      return fresh.docs.map((doc) => Bus.fromDoc(doc)).toList();
+    }
+    return snapshot.docs.map((doc) => Bus.fromDoc(doc)).toList();
   }
 
+  /// Real-time stream of live EV cart GPS locations on campus.
+  @override
+  Stream<List<CartLocation>> streamCartLocations() {
+    return _locationsRef.snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => CartLocation.fromDoc(doc)).toList();
+    });
+  }
+
+  /// Real-time stream of ride requests made by the signed-in student.
+  @override
+  Stream<List<RideRequest>> streamUserRides() {
+    final uid = _currentUserId;
+    return _ridesRef
+        .where('userId', isEqualTo: uid)
+        .snapshots()
+        .map((snapshot) {
+      final list = snapshot.docs.map((doc) => RideRequest.fromDoc(doc)).toList();
+      // Sort in-memory to avoid needing a composite index
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return list;
+    });
+  }
+
+  /// Creates a new EV cart ride request in Firestore for the current student.
+  @override
+  Future<RideRequest> createRideRequest({
+    required String pickup,
+    required String drop,
+  }) async {
+    final now = DateTime.now();
+    final docRef = _ridesRef.doc();
+    final ride = RideRequest(
+      id: docRef.id,
+      pickup: pickup,
+      drop: drop,
+      userId: _currentUserId,
+      userName: _currentUserName,
+      userEmail: _currentUserEmail,
+      status: 'pending',
+      createdAt: now,
+    );
+
+    await docRef.set(ride.toMap());
+    return ride;
+  }
+
+  /// Cancels an active ride request in Firestore.
+  @override
+  Future<void> cancelRideRequest(String requestId) async {
+    await _ridesRef.doc(requestId).update({'status': 'cancelled'});
+  }
+
+  /// Books a seat on a city bus, decrementing available seats in Firestore atomically.
   @override
   Future<Ticket> bookBus(Bus bus) async {
-    final ticket = Ticket(id: 'TKT-${1000 + DateTime.now().microsecond % 9000}', bus: bus);
-    _tickets.insert(0, ticket);
-    return ticket;
+    final busDocRef = _busesRef.doc(bus.id);
+    final ticketDocRef = _ticketsRef.doc();
+
+    return await _firestore.runTransaction<Ticket>((transaction) async {
+      final busSnapshot = await transaction.get(busDocRef);
+      if (!busSnapshot.exists) {
+        throw Exception('Selected bus route does not exist.');
+      }
+
+      final available = (busSnapshot.data()?['availableSeats'] as num?)?.toInt() ?? 0;
+      if (available <= 0) {
+        throw Exception('Sorry, no seats remaining on this bus.');
+      }
+
+      // Decrement seats
+      transaction.update(busDocRef, {'availableSeats': available - 1});
+
+      final now = DateTime.now();
+      final updatedBus = Bus(
+        id: bus.id,
+        route: bus.route,
+        departureTime: bus.departureTime,
+        availableSeats: available - 1,
+        totalSeats: bus.totalSeats,
+        registrationNumber: bus.registrationNumber,
+      );
+
+      final ticket = Ticket(
+        id: 'TKT-${now.millisecondsSinceEpoch.toString().substring(7)}',
+        bus: updatedBus,
+        userId: _currentUserId,
+        userName: _currentUserName,
+        isUsed: false,
+        bookedAt: now,
+      );
+
+      transaction.set(ticketDocRef, ticket.toMap());
+      return ticket;
+    });
   }
 
+  /// Real-time stream of booked tickets for the signed-in student.
   @override
-  Future<Ticket?> findTicket(String ticketId) async {
-    for (final ticket in _tickets) {
-      if (ticket.id == ticketId) return ticket;
+  Stream<List<Ticket>> streamUserTickets() {
+    final uid = _currentUserId;
+    return _ticketsRef
+        .where('userId', isEqualTo: uid)
+        .snapshots()
+        .map((snapshot) {
+      final list = snapshot.docs.map((doc) => Ticket.fromDoc(doc)).toList();
+      list.sort((a, b) => b.bookedAt.compareTo(a.bookedAt));
+      return list;
+    });
+  }
+
+  /// Auto-populates Firestore with default routes & cart locations if empty.
+  @override
+  Future<void> seedInitialDataIfEmpty() async {
+    try {
+      // 1. Seed scheduled buses / routes
+      final busesSnap = await _busesRef.limit(1).get();
+      if (busesSnap.docs.isEmpty) {
+        final initialBuses = [
+          {
+            'route': 'Main Campus → Rupnagar City Centre',
+            'departureTime': '02:30 PM',
+            'availableSeats': 14,
+            'totalSeats': 32,
+            'registrationNumber': 'PB-12-A-4019',
+            'isActive': true,
+          },
+          {
+            'route': 'Main Campus → Morinda Railway Station',
+            'departureTime': '04:15 PM',
+            'availableSeats': 6,
+            'totalSeats': 32,
+            'registrationNumber': 'PB-12-B-8821',
+            'isActive': true,
+          },
+          {
+            'route': 'Main Campus → Chandigarh ISBT (Sector 43)',
+            'departureTime': '06:00 PM',
+            'availableSeats': 8,
+            'totalSeats': 45,
+            'registrationNumber': 'PB-12-C-1092',
+            'isActive': true,
+          },
+          {
+            'route': 'Hostel Sector → Academic Block Shuttle',
+            'departureTime': 'Every 15 mins',
+            'availableSeats': 18,
+            'totalSeats': 20,
+            'registrationNumber': 'PB-12-EV-01',
+            'isActive': true,
+          },
+        ];
+
+        for (final busData in initialBuses) {
+          await _busesRef.add(busData);
+        }
+      }
+
+      // 2. Seed real-time EV cart locations on campus
+      final locationsSnap = await _locationsRef.limit(1).get();
+      if (locationsSnap.docs.isEmpty) {
+        final initialLocations = [
+          {
+            'name': 'EV Cart #1 (Satluj-Academic)',
+            'latitude': 30.9686,
+            'longitude': 76.4685,
+            'heading': 45.0,
+            'status': 'active',
+            'batteryLevel': 92,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          {
+            'name': 'EV Cart #2 (Nalanda Library)',
+            'latitude': 30.9676,
+            'longitude': 76.4732,
+            'heading': 180.0,
+            'status': 'active',
+            'batteryLevel': 78,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          {
+            'name': 'EV Cart #3 (Main Gate Shuttle)',
+            'latitude': 30.9719,
+            'longitude': 76.4751,
+            'heading': 270.0,
+            'status': 'active',
+            'batteryLevel': 85,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+        ];
+
+        for (int i = 0; i < initialLocations.length; i++) {
+          await _locationsRef.doc('cart-${i + 1}').set(initialLocations[i]);
+        }
+      }
+    } catch (e) {
+      // Non-blocking in case of offline launch
     }
-    return null;
-  }
-
-  @override
-  Future<void> markTicketUsed(Ticket ticket) async {
-    ticket.isUsed = true;
-    if (ticket.bus.availableSeats > 0) ticket.bus.availableSeats--;
   }
 }

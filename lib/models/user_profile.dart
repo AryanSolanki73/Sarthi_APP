@@ -4,7 +4,7 @@ class UserProfile {
   final String name;
   final String email;
   final String? photoUrl;
-  final String role; // student, driver, admin
+  final String role; // student, admin
   final DateTime createdAt;
 
   UserProfile({

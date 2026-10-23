@@ -59,6 +59,10 @@ class _SplashScreenState extends State<SplashScreen> {
   /// Checks if the user was previously logged in.
   Future<bool> _checkSavedLogin() async {
     try {
+      if (FirebaseAuth.instance.currentUser != null) {
+        return true;
+      }
+
       final saved = await CredentialStorage.loadCredentials();
       if (saved == null) return false;
 

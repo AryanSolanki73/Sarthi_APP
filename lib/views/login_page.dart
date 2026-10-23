@@ -340,7 +340,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildFooter() {
     return const Center(
       child: Text(
-        'IIT Ropar Mobility · Student · Driver · Admin',
+        'IIT Ropar Mobility · Student · Admin',
         style: TextStyle(color: Color(0xFF9BA3A0), fontSize: 13),
       ),
     );

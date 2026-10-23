@@ -1,68 +1,134 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:sarthi_app/models/bus.dart';
+import 'package:sarthi_app/models/cart_location.dart';
 import 'package:sarthi_app/models/ride_request.dart';
 import 'package:sarthi_app/models/ticket.dart';
 import 'package:sarthi_app/services/transit_service.dart';
 
-enum TicketStatus { verified, invalid, alreadyUsed }
-
-/// Controller for passenger bookings and driver operations.
+/// Controller for student transit actions: EV Cart hailing, live map tracking,
+/// and City Bus ticket booking powered by Firebase.
 class TransitController extends ChangeNotifier {
   TransitController(this._service);
 
   final TransitService _service;
-  bool isDriverView = false;
+
   bool isBusTab = false;
-  bool isScannerTab = false;
   bool isLoading = true;
-  String pickup = 'Satlej Hostel';
-  String drop = 'JC Bose Academic Block';
-  String capacity = 'Empty';
+  String pickup = 'Satluj Hostel';
+  String drop = 'J.C. Bose Block';
+
   List<Bus> buses = [];
-  List<RideRequest> requests = [];
+  List<CartLocation> cartLocations = [];
+  List<RideRequest> rides = [];
   List<Ticket> tickets = [];
 
+  StreamSubscription<List<Bus>>? _busesSub;
+  StreamSubscription<List<CartLocation>>? _locationsSub;
+  StreamSubscription<List<RideRequest>>? _ridesSub;
+  StreamSubscription<List<Ticket>>? _ticketsSub;
+
+  /// Returns the current active ride if the student has requested one.
+  RideRequest? get activeRide {
+    for (final ride in rides) {
+      if (ride.isActive) return ride;
+    }
+    return null;
+  }
+
+  /// Initializes real-time Firebase listeners for routes, rides, and locations.
   Future<void> load() async {
     isLoading = true;
     notifyListeners();
-    buses = await _service.fetchBuses();
-    requests = await _service.fetchRideRequests();
+
+    try {
+      await _service.seedInitialDataIfEmpty();
+    } catch (_) {}
+
+    _subscribeToFirebaseStreams();
+
     isLoading = false;
     notifyListeners();
   }
 
-  void setPassengerTab(bool showBuses) { isBusTab = showBuses; notifyListeners(); }
-  void toggleRole() { isDriverView = !isDriverView; notifyListeners(); }
-  void setDriverTab(bool showScanner) { isScannerTab = showScanner; notifyListeners(); }
-  void setPickup(String value) { pickup = value; notifyListeners(); }
-  void setDrop(String value) { drop = value; notifyListeners(); }
-  void setCapacity(String value) { capacity = value; notifyListeners(); }
+  void _subscribeToFirebaseStreams() {
+    _busesSub = _service.streamBuses().listen(
+      (data) {
+        buses = data;
+        notifyListeners();
+      },
+      onError: (err) => debugPrint('Buses stream error: $err'),
+    );
 
-  Future<void> requestCart() async {
-    final request = await _service.createRideRequest(pickup: pickup, drop: drop);
-    requests = [request, ...requests];
+    _locationsSub = _service.streamCartLocations().listen(
+      (data) {
+        cartLocations = data;
+        notifyListeners();
+      },
+      onError: (err) => debugPrint('Cart locations stream error: $err'),
+    );
+
+    _ridesSub = _service.streamUserRides().listen(
+      (data) {
+        rides = data;
+        notifyListeners();
+      },
+      onError: (err) => debugPrint('User rides stream error: $err'),
+    );
+
+    _ticketsSub = _service.streamUserTickets().listen(
+      (data) {
+        tickets = data;
+        notifyListeners();
+      },
+      onError: (err) => debugPrint('User tickets stream error: $err'),
+    );
+  }
+
+  void setPassengerTab(bool showBuses) {
+    isBusTab = showBuses;
     notifyListeners();
   }
 
-  Future<void> acceptRequest(RideRequest request) async {
-    await _service.acceptRideRequest(request.id);
-    requests = requests.where((item) => item.id != request.id).toList();
+  void setPickup(String value) {
+    pickup = value;
     notifyListeners();
   }
 
+  void setDrop(String value) {
+    drop = value;
+    notifyListeners();
+  }
+
+  /// Submits an EV Cart hailing request to Firebase.
+  Future<RideRequest> requestCart() async {
+    final request = await _service.createRideRequest(
+      pickup: pickup,
+      drop: drop,
+    );
+    notifyListeners();
+    return request;
+  }
+
+  /// Cancels an in-progress or pending ride request in Firebase.
+  Future<void> cancelActiveRide(String rideId) async {
+    await _service.cancelRideRequest(rideId);
+    notifyListeners();
+  }
+
+  /// Reserves a bus seat and creates a verified ticket in Firebase.
   Future<Ticket> bookBus(Bus bus) async {
     final ticket = await _service.bookBus(bus);
-    tickets = [ticket, ...tickets];
     notifyListeners();
     return ticket;
   }
 
-  Future<TicketStatus> verifyTicket(String code) async {
-    final ticket = await _service.findTicket(code);
-    if (ticket == null) return TicketStatus.invalid;
-    if (ticket.isUsed) return TicketStatus.alreadyUsed;
-    await _service.markTicketUsed(ticket);
-    notifyListeners();
-    return TicketStatus.verified;
+  @override
+  void dispose() {
+    _busesSub?.cancel();
+    _locationsSub?.cancel();
+    _ridesSub?.cancel();
+    _ticketsSub?.cancel();
+    super.dispose();
   }
 }
