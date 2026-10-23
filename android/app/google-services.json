@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "751583488405-fsosp2q8ekqfbf5861qjvl63jdugcvfm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.sarthi_app",
+            "certificate_hash": "71819c4167e9270c8f9babc5e9aa8381f11589ee"
+          }
+        },
+        {
+          "client_id": "751583488405-putsh1ktckh18gl34fgj569unpa0tf0g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.sarthi_app",
+            "certificate_hash": "1ef0d557df871d911eb24d3437517bc3011fdee2"
+          }
+        },
+        {
           "client_id": "751583488405-h7d4cu74n307dsf875plalpdj11emj4q.apps.googleusercontent.com",
           "client_type": 3
         }
