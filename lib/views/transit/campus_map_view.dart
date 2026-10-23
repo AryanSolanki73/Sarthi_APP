@@ -5,7 +5,8 @@ import 'package:sarthi_app/core/app_colors.dart';
 import 'package:sarthi_app/models/cart_location.dart';
 import 'package:sarthi_app/services/routing_service.dart';
 
-enum MapThemeType { standard, detailed, dark }
+enum MapThemeType { voyager, standard }
+// , dark, standard
 
 /// Interactive campus map with verified IIT Ropar coordinates, real-time route
 /// calculation, live EV cart markers, and modern high-definition tile styling.
@@ -22,6 +23,9 @@ class CampusMapView extends StatefulWidget {
   final String? dropLocation;
   final List<CartLocation> cartLocations;
   final ValueChanged<String>? onSelectStop;
+
+  /// CARTO Basemap API key for authentic Voyager and Dark Matter tiles
+  static const String cartoApiKey = 'cb1_4t08_1_ee5784d6b906a321c1c039c5';
 
   /// Verified OpenStreetMap coordinates for IIT Ropar permanent campus.
   static const campusLocations = <String, LatLng>{
@@ -49,7 +53,7 @@ class _CampusMapViewState extends State<CampusMapView> {
   static const _campusCenter = LatLng(30.9680, 76.4720);
 
   final _mapController = MapController();
-  MapThemeType _currentTheme = MapThemeType.standard;
+  MapThemeType _currentTheme = MapThemeType.voyager;
 
   RouteInfo? _calculatedRoute;
   bool _isCalculatingRoute = false;
@@ -110,12 +114,16 @@ class _CampusMapViewState extends State<CampusMapView> {
   }
 
   String get _tileUrl {
+    final key = CampusMapView.cartoApiKey;
+    final keyParam = key.isNotEmpty ? '?key=$key' : '';
+
     switch (_currentTheme) {
+      case MapThemeType.voyager:
+        return 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png$keyParam';
+      // case MapThemeType.dark:
+      //   return 'https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png$keyParam';
       case MapThemeType.standard:
-      case MapThemeType.dark:
         return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-      case MapThemeType.detailed:
-        return 'https://a.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png';
     }
   }
 
@@ -334,21 +342,8 @@ class _CampusMapViewState extends State<CampusMapView> {
           children: [
             TileLayer(
               urlTemplate: _tileUrl,
-              userAgentPackageName: 'org.iitrpr.sarthi',
+              userAgentPackageName: 'com.example.sarthi_app',
               maxZoom: 19,
-              tileBuilder: _currentTheme == MapThemeType.dark
-                  ? (context, tileWidget, tile) {
-                      return ColorFiltered(
-                        colorFilter: const ColorFilter.matrix(<double>[
-                          -0.75,     0,     0, 0, 225,
-                              0, -0.75,     0, 0, 225,
-                              0,     0, -0.75, 0, 235,
-                              0,     0,     0, 1,   0,
-                        ]),
-                        child: tileWidget,
-                      );
-                    }
-                  : null,
             ),
             PolylineLayer(polylines: _polylines),
             MarkerLayer(markers: _markers),
@@ -503,7 +498,7 @@ class _CampusMapViewState extends State<CampusMapView> {
           bottom: 4,
           right: 8,
           child: Text(
-            '© OpenStreetMap contributors',
+            '© OpenStreetMap & CARTO',
             style: TextStyle(fontSize: 9, color: Color(0xFF888888)),
           ),
         ),
@@ -514,14 +509,14 @@ class _CampusMapViewState extends State<CampusMapView> {
   void _cycleMapTheme() {
     setState(() {
       switch (_currentTheme) {
-        case MapThemeType.standard:
-          _currentTheme = MapThemeType.detailed;
-          break;
-        case MapThemeType.detailed:
-          _currentTheme = MapThemeType.dark;
-          break;
-        case MapThemeType.dark:
+        case MapThemeType.voyager:
+          //   _currentTheme = MapThemeType.dark;
+          //   break;
+          // case MapThemeType.dark:
           _currentTheme = MapThemeType.standard;
+          break;
+        case MapThemeType.standard:
+          _currentTheme = MapThemeType.voyager;
           break;
       }
     });
