@@ -7,6 +7,7 @@ import 'package:sarthi_app/models/ticket.dart';
 import 'package:sarthi_app/services/transit_service.dart';
 import 'package:sarthi_app/views/profile_page.dart';
 import 'package:sarthi_app/views/transit/campus_map_view.dart';
+import 'package:sarthi_app/views/widgets/qr_code_widget.dart';
 
 /// Main transit screen for students powered by Firebase.
 class TransitHomeView extends StatefulWidget {
@@ -716,32 +717,51 @@ class _TransitHomeViewState extends State<TransitHomeView> {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
               ticket.bus.route,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             Text(
-              'Ticket ID: ${ticket.id}',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              'Departure: ${ticket.bus.departureTime} · ${ticket.bus.registrationNumber}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
             ),
-            Text('Departure: ${ticket.bus.departureTime}'),
-            Text('Bus: ${ticket.bus.registrationNumber}'),
             const SizedBox(height: 16),
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(12),
+            // Live scannable QR Code
+            QrCodeWidget(
+              data: ticket.id,
+              size: 190,
+              showCenterBadge: true,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.emerald.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.emerald.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                ticket.id,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                  color: AppColors.emerald,
                 ),
-                child: const Icon(
-                  Icons.qr_code_2,
-                  size: 100,
-                  color: Color(0xFF1F2937),
-                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Show this QR code to the driver upon boarding',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                color: Color(0xFF6B7280),
+                fontStyle: FontStyle.italic,
               ),
             ),
           ],
@@ -814,55 +834,96 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                         separatorBuilder: (_, _) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final ticket = _controller.tickets[index];
-                          return Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF9FAFB),
+                          return Material(
+                            color: const Color(0xFFF9FAFB),
+                            borderRadius: BorderRadius.circular(14),
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.pop(context);
+                                _showTicketDialog(ticket);
+                              },
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: const Color(0xFFE5E7EB),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.confirmation_number_rounded,
-                                  color: AppColors.emerald,
-                                  size: 32,
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        ticket.bus.route,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Departure: ${ticket.bus.departureTime} · ${ticket.bus.registrationNumber}',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Color(0xFF6B7280),
-                                        ),
-                                      ),
-                                      Text(
-                                        'Ticket: ${ticket.id}',
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.emerald,
-                                        ),
-                                      ),
-                                    ],
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: const Color(0xFFE5E7EB),
                                   ),
                                 ),
-                              ],
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.confirmation_number_rounded,
+                                      color: AppColors.emerald,
+                                      size: 32,
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            ticket.bus.route,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Departure: ${ticket.bus.departureTime} · ${ticket.bus.registrationNumber}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Color(0xFF6B7280),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Ticket: ${ticket.id}',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.emerald,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.emerald.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.qr_code_2_rounded,
+                                            size: 16,
+                                            color: AppColors.emerald,
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Show QR',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.emerald,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           );
                         },

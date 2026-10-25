@@ -41,7 +41,9 @@ class Ticket {
     );
 
     return Ticket(
-      id: doc.id,
+      id: (map['id'] as String?)?.isNotEmpty == true
+          ? map['id'] as String
+          : doc.id,
       bus: bus,
       userId: map['userId'] as String? ?? '',
       userName: map['userName'] as String? ?? 'Student',

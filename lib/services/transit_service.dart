@@ -130,7 +130,9 @@ class FirebaseTransitService implements TransitService {
   @override
   Future<Ticket> bookBus(Bus bus) async {
     final busDocRef = _busesRef.doc(bus.id);
-    final ticketDocRef = _ticketsRef.doc();
+    final now = DateTime.now();
+    final ticketId = 'TKT-${now.millisecondsSinceEpoch.toString().substring(7)}';
+    final ticketDocRef = _ticketsRef.doc(ticketId);
 
     return await _firestore.runTransaction<Ticket>((transaction) async {
       final busSnapshot = await transaction.get(busDocRef);
@@ -146,7 +148,6 @@ class FirebaseTransitService implements TransitService {
       // Decrement seats
       transaction.update(busDocRef, {'availableSeats': available - 1});
 
-      final now = DateTime.now();
       final updatedBus = Bus(
         id: bus.id,
         route: bus.route,
@@ -157,7 +158,7 @@ class FirebaseTransitService implements TransitService {
       );
 
       final ticket = Ticket(
-        id: 'TKT-${now.millisecondsSinceEpoch.toString().substring(7)}',
+        id: ticketId,
         bus: updatedBus,
         userId: _currentUserId,
         userName: _currentUserName,
