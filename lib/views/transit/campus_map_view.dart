@@ -29,20 +29,29 @@ class CampusMapView extends StatefulWidget {
 
   /// Verified OpenStreetMap coordinates for IIT Ropar permanent campus.
   static const campusLocations = <String, LatLng>{
-    'Satluj Hostel': LatLng(30.9686, 76.4685),
-    'Beas Hostel': LatLng(30.9677, 76.4684),
+    'Satluj Hostel': LatLng(30.969204784595604, 76.46845671595626),
+    'Beas Hostel': LatLng(30.96905470714629, 76.466918963477),
     'Ravi Hostel': LatLng(30.9669, 76.4699),
-    'Chenab Hostel': LatLng(30.9682, 76.4688),
-    'Mess & Cafeteria': LatLng(30.9662, 76.4713),
+    'Chenab Hostel': LatLng(30.969049347233025, 76.4657500215517),
+    'Chintpurni Hostel' : LatLng(30.967393808746436, 76.46853066350704),
+    'Shivalik Mess': LatLng(30.9662, 76.4713),
     'Utility Block': LatLng(30.9678, 76.4699),
-    'Nalanda Library': LatLng(30.9676, 76.4732),
+    'Nalanda Library': LatLng(30.967083205173665, 76.47319568293965),
     'Super Academic Building': LatLng(30.9674, 76.4744),
-    'J.C. Bose Block': LatLng(30.9684, 76.4747),
+    'J.C. Bose Block': LatLng(30.968849935723348, 76.4747739852841),
     'S. Ramanujan Block': LatLng(30.9688, 76.4757),
     'M2 Lecture Hall': LatLng(30.9677, 76.4719),
     'Guest House': LatLng(30.9713, 76.4771),
-    'Main Gate': LatLng(30.9719, 76.4751),
+    'Main Gate': LatLng(30.9713209900892, 76.47316043205988),
+    'Brahmaputra Boys Hostel': LatLng(30.96698039823692, 76.46695646963504),
+    'Annapurna Mess' : LatLng(30.96711274436866, 76.46785994454856) , 
+    'S. Bhatnagar Block' : LatLng(30.9690164322192, 76.4706036424563) ,
+    'Satish Dhawan Block' : LatLng(30.96887474417408, 76.47173175877887) ,
+    'M. Visvesvaraya Block (Administrative Block)' : LatLng(30.96864829094076, 76.47327428144052)
   };
+
+  /// Dynamic list of all location names derived from [campusLocations].
+  static List<String> get stopNames => campusLocations.keys.toList();
 
   @override
   State<CampusMapView> createState() => _CampusMapViewState();

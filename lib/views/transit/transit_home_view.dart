@@ -21,25 +21,21 @@ class _TransitHomeViewState extends State<TransitHomeView> {
   final _controller = TransitController(FirebaseTransitService());
   bool _isRequesting = false;
 
-  static const _campusStops = [
-    'Satluj Hostel',
-    'Beas Hostel',
-    'Ravi Hostel',
-    'Chenab Hostel',
-    'Mess & Cafeteria',
-    'Utility Block',
-    'Nalanda Library',
-    'Super Academic Building',
-    'J.C. Bose Block',
-    'S. Ramanujan Block',
-    'M2 Lecture Hall',
-    'Guest House',
-    'Main Gate',
-  ];
+  /// Dynamic campus stops derived directly from CampusMapView.campusLocations
+  List<String> get _campusStops => CampusMapView.stopNames;
 
   @override
   void initState() {
     super.initState();
+    if (_campusStops.isNotEmpty) {
+      if (!_campusStops.contains(_controller.pickup)) {
+        _controller.pickup = _campusStops.first;
+      }
+      if (!_campusStops.contains(_controller.drop)) {
+        _controller.drop =
+            _campusStops.length > 1 ? _campusStops[1] : _campusStops.first;
+      }
+    }
     _controller.addListener(_refresh);
     _controller.load();
   }
