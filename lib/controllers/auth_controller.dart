@@ -23,7 +23,7 @@ class AuthController {
   }
 
   String? validateName(String? value) {
-    if ((value?.trim().length ?? 0) < 2) return 'Enter your full name';
+    if ((value?.trim().length ?? 0) < 2) return 'Enter your full name / username';
     return null;
   }
 
@@ -39,6 +39,23 @@ class AuthController {
     return null;
   }
 
+  String? validatePhoneNumber(String? value) {
+    final phone = value?.trim() ?? '';
+    if (phone.isEmpty) return 'Enter your phone number';
+    final cleaned = phone.replaceAll(RegExp(r'[\s\-+()]'), '');
+    if (cleaned.length < 10) {
+      return 'Enter a valid 10-digit phone number';
+    }
+    return null;
+  }
+
+  String? validateHostel(String? value) {
+    if ((value?.trim().length ?? 0) < 2) {
+      return 'Please select or enter your hostel';
+    }
+    return null;
+  }
+
   Future<UserModel> signIn({required String email, required String password}) =>
       _service.signIn(email: email, password: password);
 
@@ -49,4 +66,10 @@ class AuthController {
   }) => _service.createAccount(name: name, email: email, password: password);
 
   Future<UserProfile?> signInWithGoogle() => _service.signInWithGoogle();
+
+  Future<UserProfile?> getUserProfile(String uid) =>
+      _service.getUserProfile(uid);
+
+  Future<void> saveUserProfile(UserProfile profile) =>
+      _service.saveUserProfile(profile);
 }

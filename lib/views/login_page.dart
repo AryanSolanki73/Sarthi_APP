@@ -1,8 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:sarthi_app/controllers/auth_controller.dart';
 import 'package:sarthi_app/core/app_colors.dart';
+import 'package:sarthi_app/models/user_profile.dart';
 import 'package:sarthi_app/services/auth_service.dart';
 import 'package:sarthi_app/services/credential_storage.dart';
+import 'package:sarthi_app/views/profile_page.dart';
 import 'package:sarthi_app/views/transit/transit_home_view.dart';
 import 'package:sarthi_app/views/widgets/google_logo_icon.dart';
 
@@ -95,6 +98,30 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await _authController.signIn(email: email, password: password);
       await CredentialStorage.saveCredentials(email: email, password: password);
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final profile = await _authController.getUserProfile(user.uid);
+        if (profile == null || !profile.isProfileComplete) {
+          if (!mounted) return;
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute<void>(
+              builder: (_) => ProfilePage(
+                isFirstTimeSetup: true,
+                initialProfile: profile ??
+                    UserProfile(
+                      uid: user.uid,
+                      name: user.displayName ?? 'Student',
+                      email: user.email ?? email,
+                      role: 'student',
+                    ),
+              ),
+            ),
+          );
+          return;
+        }
+      }
+
       _navigateToHome();
     } catch (e) {
       await CredentialStorage.clearCredentials();
@@ -112,7 +139,22 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final profile = await _authController.signInWithGoogle();
       if (profile == null) return; // User cancelled
-      _navigateToHome();
+
+      if (!mounted) return;
+
+      // First time login or incomplete profile: mandate profile info update
+      if (!profile.isProfileComplete) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => ProfilePage(
+              isFirstTimeSetup: true,
+              initialProfile: profile,
+            ),
+          ),
+        );
+      } else {
+        _navigateToHome();
+      }
     } catch (e) {
       _showError(e.toString());
     } finally {
