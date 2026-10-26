@@ -194,16 +194,18 @@ class _CampusMapViewState extends State<CampusMapView> {
       }
     });
 
-    // 2. Live EV Carts from Firebase
+    // 2. Live EV Carts from Firebase (only active vehicles from online drivers)
     for (final cart in widget.cartLocations) {
-      markers.add(
-        Marker(
-          point: LatLng(cart.latitude, cart.longitude),
-          width: 54,
-          height: 54,
-          child: _CartMarker(cart: cart),
-        ),
-      );
+      if (cart.isOnline) {
+        markers.add(
+          Marker(
+            point: LatLng(cart.latitude, cart.longitude),
+            width: 54,
+            height: 54,
+            child: _CartMarker(cart: cart),
+          ),
+        );
+      }
     }
 
     // 3. Highlighted Pickup Marker
@@ -335,7 +337,7 @@ class _CampusMapViewState extends State<CampusMapView> {
   @override
   Widget build(BuildContext context) {
     final liveCartCount = widget.cartLocations
-        .where((c) => c.status == 'active')
+        .where((c) => c.isOnline)
         .length;
 
     return Stack(
@@ -611,10 +613,16 @@ class _MapStatus extends StatelessWidget {
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.circle, color: AppColors.emerald, size: 9),
+        Icon(
+          Icons.circle,
+          color: count > 0 ? AppColors.emerald : const Color(0xFF9CA3AF),
+          size: 9,
+        ),
         const SizedBox(width: 7),
         Text(
-          '$count Carts Active',
+          count > 0
+              ? '$count Active Cart${count == 1 ? '' : 's'}'
+              : 'No Active Carts',
           style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.bold,

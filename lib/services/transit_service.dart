@@ -74,11 +74,15 @@ class FirebaseTransitService implements TransitService {
     return snapshot.docs.map((doc) => Bus.fromDoc(doc)).toList();
   }
 
-  /// Real-time stream of live EV cart GPS locations on campus.
+  /// Real-time stream of live EV cart GPS locations on campus from "locations".
+  /// Strictly filters for active vehicles broadcasted by online drivers.
   @override
   Stream<List<CartLocation>> streamCartLocations() {
     return _locationsRef.snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => CartLocation.fromDoc(doc)).toList();
+      return snapshot.docs
+          .map((doc) => CartLocation.fromDoc(doc))
+          .where((cart) => cart.isOnline)
+          .toList();
     });
   }
 
@@ -232,41 +236,45 @@ class FirebaseTransitService implements TransitService {
         }
       }
 
-      // 2. Seed real-time EV cart locations on campus
+      // 2. Provision default campus vehicles in "locations" with 6-decimal precision
       final locationsSnap = await _locationsRef.limit(1).get();
       if (locationsSnap.docs.isEmpty) {
-        final initialLocations = [
+        final initialCarts = [
           {
-            'name': 'EV Cart #1 (Satluj-Academic)',
-            'latitude': 30.9686,
-            'longitude': 76.4685,
+            'name': 'EV Cart #1 (Satlej-Academic Loop)',
+            'status': 'active',
+            'driverOnline': true,
+            'batteryLevel': 95,
+            'latitude': 30.969205,
+            'longitude': 76.468457,
             'heading': 45.0,
-            'status': 'active',
-            'batteryLevel': 92,
             'updatedAt': FieldValue.serverTimestamp(),
           },
           {
-            'name': 'EV Cart #2 (Nalanda Library)',
-            'latitude': 30.9676,
-            'longitude': 76.4732,
-            'heading': 180.0,
+            'name': 'EV Cart #2 (Hostel Shuttle)',
             'status': 'active',
-            'batteryLevel': 78,
+            'driverOnline': true,
+            'batteryLevel': 90,
+            'latitude': 30.969055,
+            'longitude': 76.466919,
+            'heading': 85.0,
             'updatedAt': FieldValue.serverTimestamp(),
           },
           {
-            'name': 'EV Cart #3 (Main Gate Shuttle)',
-            'latitude': 30.9719,
-            'longitude': 76.4751,
+            'name': 'EV Cart #3 (Main Gate Express)',
+            'status': 'offline',
+            'driverOnline': false,
+            'batteryLevel': 88,
+            'latitude': 30.971321,
+            'longitude': 76.473160,
             'heading': 270.0,
-            'status': 'active',
-            'batteryLevel': 85,
             'updatedAt': FieldValue.serverTimestamp(),
           },
         ];
 
-        for (int i = 0; i < initialLocations.length; i++) {
-          await _locationsRef.doc('cart-${i + 1}').set(initialLocations[i]);
+        for (int i = 0; i < initialCarts.length; i++) {
+          final id = 'cart-${i + 1}';
+          await _locationsRef.doc(id).set(initialCarts[i]);
         }
       }
     } catch (e) {
