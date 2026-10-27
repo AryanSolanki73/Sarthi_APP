@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "sarthi-app-a981e"
-  }
+  },
+  "targets": {
+    "sarthi-app-a981e": {
+      "hosting": {
+        "admin": [
+          "sarthi-iitrpr"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

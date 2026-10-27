@@ -21,11 +21,13 @@
     }
   },
   "hosting": {
+    "target": "admin",
     "public": "build/web",
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/*.symbols"
     ],
     "rewrites": [
       {
