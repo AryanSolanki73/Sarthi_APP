@@ -59,8 +59,8 @@ class DefaultFirebaseOptions {
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyD1S1aCSDDADwy0PItXSpdW6nSsnGkzvxA',
     appId: '1:751583488405:android:2fbd72253bb945fe772e9c',
-    messagingSenderId: '751583488405',
-    projectId: 'sarthi-app-a981e',
+    messagingSenderId: '696788784419',
+    projectId: 'notes-app-4bf68',
     storageBucket: 'sarthi-app-a981e.firebasestorage.app',
   );
 
