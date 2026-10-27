@@ -1,9 +1,16 @@
-
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+import '../../views/widgets/google_logo_icon.dart';
+import '../auth/admin_auth_service.dart';
 import 'admin_dashboard_screen.dart';
 
-import '../auth/admin_auth_service.dart';
+const _green = Color(0xFF087F5B);
+const _mint = Color(0xFFE7F6EF);
+const _ink = Color(0xFF18231F);
+const _muted = Color(0xFF7B8983);
+const _line = Color(0xFFE7ECE9);
+const _pageBackground = Color(0xFFF5F7F6);
 
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({super.key});
@@ -33,14 +40,14 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   }
 
   void _openDashboard() {
-  if (!mounted) return;
+    if (!mounted) return;
 
-  Navigator.of(context).pushReplacement(
-    MaterialPageRoute(
-      builder: (_) => const AdminDashboardScreen(),
-    ),
-  );
-}
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => const AdminDashboardScreen(),
+      ),
+    );
+  }
 
   // Email and password sign-in
   Future<void> _signInWithEmail() async {
@@ -60,14 +67,12 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       );
 
       if (!mounted) return;
-_openDashboard();
-      // Authentication succeeded, but admin authorization
-      // must be checked before granting dashboard access.
+      _openDashboard();
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Login successful. Verifying admin access is next.',
-          ),
+          content: Text('Login successful. Welcome to Admin Portal.'),
+          backgroundColor: _green,
         ),
       );
     } on FirebaseAuthException catch (e) {
@@ -75,6 +80,8 @@ _openDashboard();
 
       setState(() {
         _errorMessage = switch (e.code) {
+          'admin-not-authorized' =>
+            'Access denied. This account does not have administrator privileges.',
           'invalid-credential' =>
             'Invalid email or password.',
           'user-not-found' =>
@@ -84,15 +91,15 @@ _openDashboard();
           'invalid-email' =>
             'Please enter a valid email address.',
           'user-disabled' =>
-            'This account has been disabled.',
+            'This administrator account has been disabled.',
           'too-many-requests' =>
-            'Too many attempts. Please try again later.',
+            'Too many failed attempts. Please try again later.',
           'network-request-failed' =>
             'Network error. Check your internet connection.',
           'operation-not-allowed' =>
             'Email/password sign-in is not enabled in Firebase.',
           _ =>
-            'Sign-in failed. Please try again.',
+            e.message ?? 'Sign-in failed. Please try again.',
         };
       });
     } catch (_) {
@@ -123,12 +130,10 @@ _openDashboard();
       if (!mounted) return;
       _openDashboard();
 
-      // Do not grant admin access based on Google sign-in alone.
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Google login successful. Verifying admin access is next.',
-          ),
+          content: Text('Google login successful. Welcome to Admin Portal.'),
+          backgroundColor: _green,
         ),
       );
     } on FirebaseAuthException catch (e) {
@@ -136,6 +141,8 @@ _openDashboard();
 
       setState(() {
         _errorMessage = switch (e.code) {
+          'admin-not-authorized' =>
+            'Access denied. This Google account is not an authorized administrator.',
           'popup-closed-by-user' =>
             'Google sign-in was cancelled.',
           'popup-blocked' =>
@@ -147,7 +154,7 @@ _openDashboard();
           'network-request-failed' =>
             'Network error. Check your internet connection.',
           _ =>
-            'Google sign-in failed. Please try again.',
+            e.message ?? 'Google sign-in failed. Please try again.',
         };
       });
     } catch (_) {
@@ -168,276 +175,487 @@ _openDashboard();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
+      backgroundColor: _pageBackground,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 430),
-              child: Card(
-                elevation: 3,
-                color: Colors.white,
-                shape: RoundedRectangleBorder(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: _line),
                   borderRadius: BorderRadius.circular(20),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x0C203B2B),
+                      blurRadius: 24,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(28),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // SARTHI branding
-                        const Icon(
-                          Icons.admin_panel_settings_rounded,
-                          size: 58,
-                          color: Color(0xFF17365D),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        const Text(
-                          'SARTHI',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2,
-                            color: Color(0xFF17365D),
-                          ),
-                        ),
-
-                        const SizedBox(height: 6),
-
-                        const Text(
-                          'Admin Portal',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        const Text(
-                          'Sign in to continue',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.black54,
-                            fontSize: 14,
-                          ),
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        // Email field
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [
-                            AutofillHints.username,
-                            AutofillHints.email,
-                          ],
-                          decoration: InputDecoration(
-                            labelText: 'Email address',
-                            hintText: 'admin@example.com',
-                            prefixIcon: const Icon(Icons.email_outlined),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          validator: (value) {
-                            final email = value?.trim() ?? '';
-
-                            if (email.isEmpty) {
-                              return 'Please enter your email';
-                            }
-
-                            if (!RegExp(
-                              r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                            ).hasMatch(email)) {
-                              return 'Please enter a valid email';
-                            }
-
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        // Password field
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          textInputAction: TextInputAction.done,
-                          autofillHints: const [
-                            AutofillHints.password,
-                          ],
-                          onFieldSubmitted: (_) {
-                            if (!_isLoading) {
-                              _signInWithEmail();
-                            }
-                          },
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
-                              tooltip: _obscurePassword
-                                  ? 'Show password'
-                                  : 'Hide password',
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                              ),
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your password';
-                            }
-
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        // Error message
-                        if (_errorMessage != null) ...[
-                          Text(
-                            _errorMessage!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.red,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-
-                        // Email sign-in button
-                        SizedBox(
+                padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Sarthi Brand Header matching Dashboard Sidebar
+                      Center(
+                        child: Container(
+                          width: 50,
                           height: 50,
-                          child: FilledButton(
-                            onPressed: _isLoading
-                                ? null
-                                : _signInWithEmail,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFF17365D),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                          decoration: BoxDecoration(
+                            color: _green,
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _green.withOpacity(0.24),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
                               ),
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text(
-                                    'Sign in',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.alt_route,
+                            color: Colors.white,
+                            size: 28,
                           ),
                         ),
+                      ),
 
-                        const SizedBox(height: 16),
+                      const SizedBox(height: 14),
 
-                        // Separator
-                        const Row(
-                          children: [
-                            Expanded(child: Divider()),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 12),
-                              child: Text(
-                                'OR',
-                                style: TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 12,
+                      const Text(
+                        'SARTHI',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _ink,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _mint,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'TRANSIT CONTROL',
+                            style: TextStyle(
+                              color: _green,
+                              fontSize: 9,
+                              letterSpacing: 1.2,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 22),
+
+                      const Text(
+                        'Admin Portal Sign In',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _ink,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+
+                      const SizedBox(height: 5),
+
+                      const Text(
+                        'Sign in to manage student accounts, fleet operations, and campus rides.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _muted,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+
+                      const SizedBox(height: 26),
+
+                      // Email field
+                      const Text(
+                        'EMAIL ADDRESS',
+                        style: TextStyle(
+                          color: _muted,
+                          fontSize: 10,
+                          letterSpacing: 1.1,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        style: const TextStyle(
+                          color: _ink,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        autofillHints: const [
+                          AutofillHints.username,
+                          AutofillHints.email,
+                        ],
+                        decoration: InputDecoration(
+                          hintText: 'admin@iitrpr.ac.in',
+                          hintStyle: TextStyle(
+                            color: _muted.withOpacity(0.6),
+                            fontSize: 13,
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.email_outlined,
+                            color: _muted,
+                            size: 19,
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFFFAFCFA),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: _line),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: _line),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: _green,
+                              width: 1.8,
+                            ),
+                          ),
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE03131),
+                              width: 1.2,
+                            ),
+                          ),
+                          focusedErrorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE03131),
+                              width: 1.6,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          final email = value?.trim() ?? '';
+
+                          if (email.isEmpty) {
+                            return 'Please enter your email';
+                          }
+
+                          if (!RegExp(
+                            r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                          ).hasMatch(email)) {
+                            return 'Please enter a valid email';
+                          }
+
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Password field
+                      const Text(
+                        'PASSWORD',
+                        style: TextStyle(
+                          color: _muted,
+                          fontSize: 10,
+                          letterSpacing: 1.1,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        textInputAction: TextInputAction.done,
+                        style: const TextStyle(
+                          color: _ink,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        autofillHints: const [
+                          AutofillHints.password,
+                        ],
+                        onFieldSubmitted: (_) {
+                          if (!_isLoading) {
+                            _signInWithEmail();
+                          }
+                        },
+                        decoration: InputDecoration(
+                          hintText: '••••••••',
+                          hintStyle: TextStyle(
+                            color: _muted.withOpacity(0.6),
+                            fontSize: 13,
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.lock_outline,
+                            color: _muted,
+                            size: 19,
+                          ),
+                          suffixIcon: IconButton(
+                            tooltip: _obscurePassword
+                                ? 'Show password'
+                                : 'Hide password',
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: _muted,
+                              size: 19,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFFFAFCFA),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: _line),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: _line),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: _green,
+                              width: 1.8,
+                            ),
+                          ),
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE03131),
+                              width: 1.2,
+                            ),
+                          ),
+                          focusedErrorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE03131),
+                              width: 1.6,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your password';
+                          }
+
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Error message banner
+                      if (_errorMessage != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 13,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF5F5),
+                            borderRadius: BorderRadius.circular(11),
+                            border: Border.all(
+                              color: const Color(0xFFFFD8D8),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.error_outline_rounded,
+                                color: Color(0xFFE03131),
+                                size: 17,
+                              ),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: const TextStyle(
+                                    color: Color(0xFFC92A2A),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.3,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Expanded(child: Divider()),
-                          ],
+                            ],
+                          ),
                         ),
-
                         const SizedBox(height: 16),
+                      ],
 
-                        // Google sign-in button
-                        SizedBox(
-                          height: 50,
-                          child: OutlinedButton.icon(
-                            onPressed: _isLoading
-                                ? null
-                                : _signInWithGoogle,
-                            icon: const Icon(
-                              Icons.g_mobiledata,
-                              size: 30,
+                      // Email sign-in button
+                      SizedBox(
+                        height: 46,
+                        child: FilledButton(
+                          onPressed: _isLoading ? null : _signInWithEmail,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _green,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: _green.withOpacity(0.6),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            label: const Text(
-                              'Continue with Google',
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Sign In to Dashboard',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // Separator
+                      Row(
+                        children: [
+                          const Expanded(child: Divider(color: _line)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'OR',
                               style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF17365D),
-                              side: const BorderSide(
-                                color: Color(0xFFCDD5E0),
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                color: _muted.withOpacity(0.8),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.2,
                               ),
                             ),
                           ),
+                          const Expanded(child: Divider(color: _line)),
+                        ],
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // Google sign-in button
+                      SizedBox(
+                        height: 46,
+                        child: OutlinedButton(
+                          onPressed: _isLoading ? null : _signInWithGoogle,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _ink,
+                            backgroundColor: Colors.white,
+                            side: const BorderSide(color: _line),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              GoogleLogoIcon(size: 18),
+                              SizedBox(width: 10),
+                              Text(
+                                'Continue with Google',
+                                style: TextStyle(
+                                  color: _ink,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                      ),
 
-                        const SizedBox(height: 24),
+                      const SizedBox(height: 24),
 
-                        // Security note
-                        const Row(
+                      // Security / Operating Area badge matching Dashboard
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF7FAF8),
+                          border: Border.all(color: _line),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.shield_outlined,
-                              size: 18,
-                              color: Colors.green,
+                            Container(
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: _mint,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Icon(
+                                Icons.shield_outlined,
+                                size: 14,
+                                color: _green,
+                              ),
                             ),
-                            SizedBox(width: 8),
-                            Flexible(
+                            const SizedBox(width: 9),
+                            const Flexible(
                               child: Text(
-                                'Restricted access for authorized administrators',
-                                textAlign: TextAlign.center,
+                                'Restricted access • IIT Ropar Transit Admins',
                                 style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.black54,
+                                  color: _muted,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),

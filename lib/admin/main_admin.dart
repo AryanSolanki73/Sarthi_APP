@@ -1,6 +1,6 @@
-
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+
 import '../firebase_options.dart';
 import 'screen/admin_login_screen.dart';
 
@@ -24,8 +24,10 @@ class AdminApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF17365D),
+          seedColor: const Color(0xFF087F5B),
+          primary: const Color(0xFF087F5B),
         ),
+        scaffoldBackgroundColor: const Color(0xFFF5F7F6),
         useMaterial3: true,
       ),
       home: const AdminLoginScreen(),
