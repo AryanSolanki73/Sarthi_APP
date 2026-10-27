@@ -132,7 +132,11 @@ class FirebaseTransitService implements TransitService {
   /// Cancels an active ride request in Firestore.
   @override
   Future<void> cancelRideRequest(String requestId) async {
-    await _ridesRef.doc(requestId).update({'status': 'cancelled'});
+    await _ridesRef.doc(requestId).update({
+      'status': 'cancelled',
+      'cancelledAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   /// Books a seat on a city bus, decrementing available seats in Firestore atomically.

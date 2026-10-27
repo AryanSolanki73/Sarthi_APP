@@ -9,8 +9,9 @@ class RideRequest {
     required this.userId,
     this.userName = 'Student',
     this.userEmail = '',
-    this.status = 'pending', // pending, accepted, in_progress, completed, cancelled
+    this.status = 'pending', // pending, accepted, arriving, in_progress, completed, rejected, cancelled
     this.assignedCartId,
+    this.assignedCartName,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -22,10 +23,14 @@ class RideRequest {
   final String userEmail;
   final String status;
   final String? assignedCartId;
+  final String? assignedCartName;
   final DateTime createdAt;
 
   bool get isActive =>
-      status == 'pending' || status == 'accepted' || status == 'in_progress';
+      status == 'pending' ||
+      status == 'accepted' ||
+      status == 'arriving' ||
+      status == 'in_progress';
 
   String get createdLabel {
     final diff = DateTime.now().difference(createdAt);
@@ -55,6 +60,7 @@ class RideRequest {
       userEmail: map['userEmail'] as String? ?? '',
       status: map['status'] as String? ?? 'pending',
       assignedCartId: map['assignedCartId'] as String?,
+      assignedCartName: map['assignedCartName'] as String?,
       createdAt: created,
     );
   }
@@ -67,6 +73,7 @@ class RideRequest {
     'userEmail': userEmail,
     'status': status,
     'assignedCartId': assignedCartId,
+    'assignedCartName': assignedCartName,
     'createdAt': Timestamp.fromDate(createdAt),
   };
 }

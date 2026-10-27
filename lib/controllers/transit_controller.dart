@@ -110,6 +110,9 @@ class TransitController extends ChangeNotifier {
       pickup: pickup,
       drop: drop,
     );
+    if (!rides.any((r) => r.id == request.id)) {
+      rides = [request, ...rides];
+    }
     notifyListeners();
     return request;
   }
@@ -117,6 +120,21 @@ class TransitController extends ChangeNotifier {
   /// Cancels an in-progress or pending ride request in Firebase.
   Future<void> cancelActiveRide(String rideId) async {
     await _service.cancelRideRequest(rideId);
+    final idx = rides.indexWhere((r) => r.id == rideId);
+    if (idx != -1) {
+      rides[idx] = RideRequest(
+        id: rides[idx].id,
+        pickup: rides[idx].pickup,
+        drop: rides[idx].drop,
+        userId: rides[idx].userId,
+        userName: rides[idx].userName,
+        userEmail: rides[idx].userEmail,
+        status: 'cancelled',
+        assignedCartId: rides[idx].assignedCartId,
+        assignedCartName: rides[idx].assignedCartName,
+        createdAt: rides[idx].createdAt,
+      );
+    }
     notifyListeners();
   }
 
