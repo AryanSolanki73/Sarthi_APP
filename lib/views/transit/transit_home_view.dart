@@ -20,6 +20,7 @@ class TransitHomeView extends StatefulWidget {
 class _TransitHomeViewState extends State<TransitHomeView> {
   final _controller = TransitController(FirebaseTransitService());
   bool _isRequesting = false;
+  final Set<String> _dismissedNoticeRideIds = {};
 
   /// Dynamic campus stops derived directly from CampusMapView.campusLocations
   List<String> get _campusStops => CampusMapView.stopNames;
@@ -232,6 +233,17 @@ class _TransitHomeViewState extends State<TransitHomeView> {
 
   Widget _cartBooking() {
     final activeRide = _controller.activeRide;
+    RideRequest? latestNoticeRide;
+    if (activeRide == null) {
+      for (final r in _controller.rides) {
+        if ((r.status == 'rejected' || r.status == 'completed') &&
+            !_dismissedNoticeRideIds.contains(r.id) &&
+            DateTime.now().difference(r.createdAt).inMinutes < 60) {
+          latestNoticeRide = r;
+          break;
+        }
+      }
+    }
 
     return Column(
       children: [
@@ -262,9 +274,72 @@ class _TransitHomeViewState extends State<TransitHomeView> {
           ),
           child: activeRide != null
               ? _activeRideCard(activeRide)
-              : _cartBookingForm(),
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (latestNoticeRide != null)
+                      _rideNoticeBanner(latestNoticeRide),
+                    _cartBookingForm(),
+                  ],
+                ),
         ),
       ],
+    );
+  }
+
+  Widget _rideNoticeBanner(RideRequest ride) {
+    final isRejected = ride.status == 'rejected';
+    final bgColor = isRejected ? const Color(0xFFFEF2F2) : const Color(0xFFECFDF5);
+    final borderColor = isRejected ? const Color(0xFFFCA5A5) : const Color(0xFFA7F3D0);
+    final titleColor = isRejected ? const Color(0xFF991B1B) : const Color(0xFF065F46);
+    final subColor = isRejected ? const Color(0xFFB91C1C) : const Color(0xFF047857);
+    final iconData = isRejected ? Icons.cancel_outlined : Icons.check_circle_outline;
+    final title = isRejected ? 'Ride Request Declined' : 'Ride Completed!';
+    final message = isRejected
+        ? 'The driver was unable to accept your ride from ${ride.pickup} to ${ride.drop}. You can try requesting again.'
+        : 'You arrived at ${ride.drop}. Thank you for traveling with Sarthi!';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: bgColor,
+        border: Border.all(color: borderColor),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(iconData, color: titleColor, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: titleColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  message,
+                  style: TextStyle(fontSize: 11, color: subColor),
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () => setState(() => _dismissedNoticeRideIds.add(ride.id)),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(Icons.close, size: 16, color: titleColor),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -276,8 +351,15 @@ class _TransitHomeViewState extends State<TransitHomeView> {
     switch (ride.status) {
       case 'accepted':
         statusColor = const Color(0xFF2563EB);
-        statusTitle = 'Cart Assigned & En Route';
+        statusTitle = (ride.assignedCartName != null && ride.assignedCartName!.isNotEmpty)
+            ? '${ride.assignedCartName} En Route'
+            : 'Cart Assigned & En Route';
         statusIcon = Icons.airport_shuttle;
+        break;
+      case 'arriving':
+        statusColor = const Color(0xFF7C3AED);
+        statusTitle = 'Cart Arrived at Pickup';
+        statusIcon = Icons.location_on;
         break;
       case 'in_progress':
         statusColor = AppColors.emerald;
@@ -316,6 +398,20 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                       color: statusColor,
                     ),
                   ),
+                  if (ride.assignedCartName != null &&
+                      ride.assignedCartName!.isNotEmpty &&
+                      ride.status != 'pending')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Text(
+                        'Assigned: ${ride.assignedCartName}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
+                      ),
+                    ),
                   Text(
                     'Requested ${ride.createdLabel}',
                     style: const TextStyle(
