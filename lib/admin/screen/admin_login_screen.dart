@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'admin_dashboard_screen.dart';
 
 import '../auth/admin_auth_service.dart';
 
@@ -31,6 +32,16 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     super.dispose();
   }
 
+  void _openDashboard() {
+  if (!mounted) return;
+
+  Navigator.of(context).pushReplacement(
+    MaterialPageRoute(
+      builder: (_) => const AdminDashboardScreen(),
+    ),
+  );
+}
+
   // Email and password sign-in
   Future<void> _signInWithEmail() async {
     if (!_formKey.currentState!.validate()) {
@@ -49,7 +60,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       );
 
       if (!mounted) return;
-
+_openDashboard();
       // Authentication succeeded, but admin authorization
       // must be checked before granting dashboard access.
       ScaffoldMessenger.of(context).showSnackBar(
@@ -110,6 +121,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       await _authService.signInWithGoogle();
 
       if (!mounted) return;
+      _openDashboard();
 
       // Do not grant admin access based on Google sign-in alone.
       ScaffoldMessenger.of(context).showSnackBar(
