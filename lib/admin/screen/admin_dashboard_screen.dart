@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'student_management_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -61,23 +62,32 @@ class AdminDashboardScreen extends StatelessWidget {
                           const NeverScrollableScrollPhysics(),
                       childAspectRatio:
                           columns == 1 ? 2.5 : 1.6,
-                      children: const [
-                        _DashboardCard(
-                          icon: Icons.people_outline,
-                          title: 'Students',
-                          subtitle: 'Student management',
-                        ),
-                        _DashboardCard(
-                          icon: Icons.electric_car_outlined,
-                          title: 'EV Carts',
-                          subtitle: 'Fleet management',
-                        ),
-                        _DashboardCard(
-                          icon: Icons.directions_bus_outlined,
-                          title: 'Buses',
-                          subtitle: 'Bus and route management',
-                        ),
-                      ],
+                      
+children: [
+  _DashboardCard(
+    icon: Icons.people_outline,
+    title: 'Students',
+    subtitle: 'Student management',
+    onTap: () {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const StudentManagementScreen(),
+        ),
+      );
+    },
+  ),
+  const _DashboardCard(
+    icon: Icons.electric_car_outlined,
+    title: 'EV Carts',
+    subtitle: 'Fleet management',
+  ),
+  const _DashboardCard(
+    icon: Icons.directions_bus_outlined,
+    title: 'Buses',
+    subtitle: 'Bus and route management',
+  ),
+],
+
                     );
                   },
                 ),
@@ -94,35 +104,43 @@ class _DashboardCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback? onTap;
 
   const _DashboardCard({
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 36),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+    
+return Card(
+  child: InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(12),
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 36),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
-    );
+    ),
+  ),
+);
+
   }
 }
