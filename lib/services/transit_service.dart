@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:sarthi_app/models/bus.dart';
 import 'package:sarthi_app/models/cart_location.dart';
 import 'package:sarthi_app/models/ride_request.dart';
@@ -76,6 +77,7 @@ class FirebaseTransitService implements TransitService {
 
   /// Real-time stream of live EV cart GPS locations on campus from "locations".
   /// Strictly filters for active vehicles broadcasted by online drivers.
+  /// If cannot connect to the collection or an error occurs, yields an empty list (no carts visible).
   @override
   Stream<List<CartLocation>> streamCartLocations() {
     return _locationsRef.snapshots().map((snapshot) {
@@ -83,6 +85,9 @@ class FirebaseTransitService implements TransitService {
           .map((doc) => CartLocation.fromDoc(doc))
           .where((cart) => cart.isOnline)
           .toList();
+    }).handleError((error) {
+      debugPrint('Firestore streamCartLocations connection error: $error');
+      return <CartLocation>[];
     });
   }
 
@@ -233,48 +238,6 @@ class FirebaseTransitService implements TransitService {
 
         for (final busData in initialBuses) {
           await _busesRef.add(busData);
-        }
-      }
-
-      // 2. Provision default campus vehicles in "locations" with 6-decimal precision
-      final locationsSnap = await _locationsRef.limit(1).get();
-      if (locationsSnap.docs.isEmpty) {
-        final initialCarts = [
-          {
-            'name': 'EV Cart #1 (Satlej-Academic Loop)',
-            'status': 'active',
-            'driverOnline': true,
-            'batteryLevel': 95,
-            'latitude': 30.969205,
-            'longitude': 76.468457,
-            'heading': 45.0,
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-          {
-            'name': 'EV Cart #2 (Hostel Shuttle)',
-            'status': 'active',
-            'driverOnline': true,
-            'batteryLevel': 90,
-            'latitude': 30.969055,
-            'longitude': 76.466919,
-            'heading': 85.0,
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-          {
-            'name': 'EV Cart #3 (Main Gate Express)',
-            'status': 'offline',
-            'driverOnline': false,
-            'batteryLevel': 88,
-            'latitude': 30.971321,
-            'longitude': 76.473160,
-            'heading': 270.0,
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-        ];
-
-        for (int i = 0; i < initialCarts.length; i++) {
-          final id = 'cart-${i + 1}';
-          await _locationsRef.doc(id).set(initialCarts[i]);
         }
       }
     } catch (e) {

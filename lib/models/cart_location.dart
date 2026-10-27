@@ -24,11 +24,11 @@ class CartLocation {
   final int batteryLevel;
   final DateTime? updatedAt;
 
-  /// Returns true unless the vehicle has been explicitly turned offline by the driver.
+  /// Returns true only if the vehicle is actively marked online by the driver.
   bool get isOnline {
     final s = status.trim().toLowerCase();
-    if (s == 'offline' && !driverOnline) return false;
-    return true;
+    if (s == 'offline' || !driverOnline) return false;
+    return s == 'active' || s == 'online' || driverOnline;
   }
 
   factory CartLocation.fromDoc(DocumentSnapshot doc) {
@@ -40,8 +40,9 @@ class CartLocation {
       updated = DateTime.tryParse(map['updatedAt']);
     }
 
+    final statusStr = (map['status'] as String?)?.trim().toLowerCase() ?? 'offline';
     final isOnlineFlag =
-        map['driverOnline'] as bool? ?? (map['status'] != 'offline');
+        map['driverOnline'] as bool? ?? (statusStr == 'active' || statusStr == 'online');
 
     return CartLocation(
       id: doc.id,
@@ -53,7 +54,7 @@ class CartLocation {
           ((map['longitude'] as num?)?.toDouble() ?? 76.468457)
               .toStringAsFixed(6)),
       heading: (map['heading'] as num?)?.toDouble() ?? 0.0,
-      status: map['status'] as String? ?? 'active',
+      status: statusStr,
       driverOnline: isOnlineFlag,
       batteryLevel: (map['batteryLevel'] as num?)?.toInt() ?? 100,
       updatedAt: updated,
