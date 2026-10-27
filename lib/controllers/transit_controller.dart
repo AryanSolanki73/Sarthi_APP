@@ -65,7 +65,11 @@ class TransitController extends ChangeNotifier {
         cartLocations = data;
         notifyListeners();
       },
-      onError: (err) => debugPrint('Cart locations stream error: $err'),
+      onError: (err) {
+        debugPrint('Cart locations stream error: $err');
+        cartLocations = [];
+        notifyListeners();
+      },
     );
 
     _ridesSub = _service.streamUserRides().listen(
