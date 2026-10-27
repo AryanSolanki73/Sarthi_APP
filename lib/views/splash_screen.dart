@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:sarthi_app/core/app_colors.dart';
+import 'package:sarthi_app/models/user_profile.dart';
 import 'package:sarthi_app/services/credential_storage.dart';
 import 'package:sarthi_app/views/login_page.dart';
+import 'package:sarthi_app/views/profile_page.dart';
 import 'package:sarthi_app/views/transit/transit_home_view.dart';
 
 /// Splash screen displayed when the application launches.
@@ -44,7 +48,47 @@ class _SplashScreenState extends State<SplashScreen> {
       destination = widget.nextScreen!;
     } else {
       final isLoggedIn = await _checkSavedLogin();
-      destination = isLoggedIn ? const TransitHomeView() : const LoginPage();
+      if (isLoggedIn) {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          try {
+            final doc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser.uid)
+                .get();
+
+            if (doc.exists && doc.data() != null) {
+              final profile = UserProfile.fromMap(doc.data()!);
+              if (!profile.isProfileComplete) {
+                destination = ProfilePage(
+                  isFirstTimeSetup: true,
+                  initialProfile: profile,
+                );
+              } else {
+                destination = const TransitHomeView();
+              }
+            } else {
+              destination = ProfilePage(
+                isFirstTimeSetup: true,
+                initialProfile: UserProfile(
+                  uid: currentUser.uid,
+                  name: currentUser.displayName ?? 'Student',
+                  email: currentUser.email ?? '',
+                  photoUrl: currentUser.photoURL,
+                  phoneNumber: currentUser.phoneNumber,
+                  role: 'student',
+                ),
+              );
+            }
+          } catch (_) {
+            destination = const TransitHomeView();
+          }
+        } else {
+          destination = const TransitHomeView();
+        }
+      } else {
+        destination = const LoginPage();
+      }
     }
 
     if (!mounted) return;
@@ -59,6 +103,9 @@ class _SplashScreenState extends State<SplashScreen> {
   /// Checks if the user was previously logged in.
   Future<bool> _checkSavedLogin() async {
     try {
+      // Skip if Firebase is not initialized (e.g., in unit/widget test environments)
+      if (Firebase.apps.isEmpty) return false;
+
       if (FirebaseAuth.instance.currentUser != null) {
         return true;
       }

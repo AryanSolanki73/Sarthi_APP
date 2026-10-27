@@ -14,6 +14,8 @@ abstract class AuthService {
     required String password,
   });
   Future<UserProfile?> signInWithGoogle();
+  Future<UserProfile?> getUserProfile(String uid);
+  Future<void> saveUserProfile(UserProfile profile);
   Future<void> signOut();
 }
 
@@ -124,17 +126,49 @@ class FirebaseAuthService implements AuthService {
         throw Exception('Failed to sign in with Google.');
       }
 
-      // 5. Create user profile with data populated from Google account
-      final profile = UserProfile(
-        uid: user.uid,
-        name: user.displayName ?? googleUser.displayName ?? 'Student',
-        email: user.email ?? googleUser.email,
-        photoUrl: user.photoURL ?? googleUser.photoUrl,
-        role: 'student',
-      );
+      // 5. Check if profile already exists in Firestore
+      UserProfile profile;
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
 
-      // 6. Store user in Firebase database
-      await saveUserToDatabase(profile);
+        if (doc.exists && doc.data() != null) {
+          profile = UserProfile.fromMap(doc.data()!);
+          // Update photo URL if missing
+          if ((profile.photoUrl == null || profile.photoUrl!.isEmpty) &&
+              (user.photoURL ?? googleUser.photoUrl) != null) {
+            profile = profile.copyWith(
+              photoUrl: user.photoURL ?? googleUser.photoUrl,
+            );
+            await saveUserToDatabase(profile);
+          }
+        } else {
+          // New Google login user: store in Firestore with student role by default
+          profile = UserProfile(
+            uid: user.uid,
+            name: user.displayName ?? googleUser.displayName ?? 'Student',
+            email: user.email ?? googleUser.email,
+            photoUrl: user.photoURL ?? googleUser.photoUrl,
+            phoneNumber: user.phoneNumber,
+            hostel: null,
+            role: 'student',
+          );
+          await saveUserToDatabase(profile);
+        }
+      } catch (e) {
+        debugPrint('Firestore read/write error during Google sign in: $e');
+        profile = UserProfile(
+          uid: user.uid,
+          name: user.displayName ?? googleUser.displayName ?? 'Student',
+          email: user.email ?? googleUser.email,
+          photoUrl: user.photoURL ?? googleUser.photoUrl,
+          phoneNumber: user.phoneNumber,
+          hostel: null,
+          role: 'student',
+        );
+      }
 
       return profile;
     } on FirebaseAuthException catch (e) {
@@ -150,13 +184,36 @@ class FirebaseAuthService implements AuthService {
     }
   }
 
+  /// Fetches a user profile from Firestore by UID.
+  @override
+  Future<UserProfile?> getUserProfile(String uid) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      if (doc.exists && doc.data() != null) {
+        return UserProfile.fromMap(doc.data()!);
+      }
+    } catch (e) {
+      debugPrint('Error getting user profile: $e');
+    }
+    return null;
+  }
+
+  /// Stores or updates user profile in Firebase Firestore database.
+  @override
+  Future<void> saveUserProfile(UserProfile profile) async {
+    await saveUserToDatabase(profile);
+  }
+
   /// Stores or updates user profile in Firebase Firestore database.
   Future<void> saveUserToDatabase(UserProfile profile) async {
     try {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(profile.uid)
-          .set(profile.toMap(), SetOptions(merge: true));
+          .set(profile.toMap());
     } catch (e) {
       debugPrint('Note: Could not save user profile to Firestore: $e');
     }
@@ -205,6 +262,16 @@ class FirebaseAuthService implements AuthService {
 
 /// Temporary mock authentication service for testing.
 class MockAuthService implements AuthService {
+  UserProfile? mockProfile = UserProfile(
+    uid: 'mock_google_uid',
+    name: 'Google Student',
+    email: 'student@iitrpr.ac.in',
+    photoUrl: null,
+    phoneNumber: '9876543210',
+    hostel: 'Satluj (Boys)',
+    role: 'student',
+  );
+
   @override
   Future<UserModel> signIn({required String email, required String password}) =>
       Future.value(
@@ -225,15 +292,16 @@ class MockAuthService implements AuthService {
   );
 
   @override
-  Future<UserProfile?> signInWithGoogle() => Future.value(
-    UserProfile(
-      uid: 'mock_google_uid',
-      name: 'Google Student',
-      email: 'student@iitrpr.ac.in',
-      photoUrl: null,
-      role: 'student',
-    ),
-  );
+  Future<UserProfile?> signInWithGoogle() => Future.value(mockProfile);
+
+  @override
+  Future<UserProfile?> getUserProfile(String uid) => Future.value(mockProfile);
+
+  @override
+  Future<void> saveUserProfile(UserProfile profile) {
+    mockProfile = profile;
+    return Future.value();
+  }
 
   @override
   Future<void> signOut() async {}

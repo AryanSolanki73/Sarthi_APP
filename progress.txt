@@ -1,0 +1,15 @@
+Done:
+- Map cordinates updated
+- Unit testing integrated
+- Profile setup on login
+
+
+Ongoing:
+- Admin portal
+- driver  kart location should be visible to requester
+
+
+Upcoming:
+- Ridebooking, ride cancelling and ride history
+- Bus booking and ticket generation
+

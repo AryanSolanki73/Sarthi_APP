@@ -1,6 +1,6 @@
 name: sarthi_app
 description: "A new Flutter project."
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
@@ -28,7 +28,6 @@ dependencies:
   path_provider: ^2.1.6
   flutter_web_plugins:
     sdk: flutter
-  # cloud_firestore: ^6.10.0
 
 dev_dependencies:
   flutter_test:
