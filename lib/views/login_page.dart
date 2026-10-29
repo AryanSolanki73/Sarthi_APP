@@ -11,7 +11,9 @@ import 'package:sarthi_app/views/widgets/google_logo_icon.dart';
 
 /// Screen for authenticating users via college email & password or Google Sign-In.
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, this.authController});
+
+  final AuthController? authController;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -31,7 +33,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _authController = AuthController(FirebaseAuthService());
+  late final AuthController _authController;
 
   bool _hidePassword = true;
   bool _isSigningIn = false;
@@ -40,6 +42,8 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
+    _authController =
+        widget.authController ?? AuthController(FirebaseAuthService());
     _loadSavedCredentials();
   }
 
@@ -139,6 +143,14 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final profile = await _authController.signInWithGoogle();
       if (profile == null) return; // User cancelled
+
+      // Reject Google Sign-in if email is not from the IIT Ropar college domain
+      final email = profile.email.trim().toLowerCase();
+      if (!email.endsWith(AuthController.collegeDomain)) {
+        await _authController.signOut();
+        _showError('Only @iitrpr.ac.in email addresses are allowed.');
+        return;
+      }
 
       if (!mounted) return;
 

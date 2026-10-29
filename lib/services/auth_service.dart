@@ -106,6 +106,13 @@ class FirebaseAuthService implements AuthService {
         return null;
       }
 
+      // Restrict sign-in to IIT Ropar accounts only
+      final email = googleUser.email.trim().toLowerCase();
+      if (!email.endsWith('@iitrpr.ac.in')) {
+        await GoogleSignIn().signOut();
+        throw Exception('Only @iitrpr.ac.in email addresses are allowed.');
+      }
+
       // 2. Obtain auth details from the request
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
@@ -124,6 +131,14 @@ class FirebaseAuthService implements AuthService {
 
       if (user == null) {
         throw Exception('Failed to sign in with Google.');
+      }
+
+      // Safeguard: ensure Firebase authenticated user also matches the college domain
+      final userEmail = (user.email ?? email).trim().toLowerCase();
+      if (!userEmail.endsWith('@iitrpr.ac.in')) {
+        await _auth.signOut();
+        await GoogleSignIn().signOut();
+        throw Exception('Only @iitrpr.ac.in email addresses are allowed.');
       }
 
       // 5. Check if profile already exists in Firestore
@@ -178,6 +193,9 @@ class FirebaseAuthService implements AuthService {
           e.toString().contains('cancelled')) {
         return null;
       }
+      if (e.toString().contains('@iitrpr.ac.in')) {
+        rethrow;
+      }
       throw Exception(
         'Google Sign-In failed: ${e.toString().replaceAll('Exception: ', '')}',
       );
@@ -189,7 +207,7 @@ class FirebaseAuthService implements AuthService {
   Future<UserProfile?> getUserProfile(String uid) async {
     try {
       final doc = await FirebaseFirestore.instance
-          .collection('users')
+            .collection('users')
           .doc(uid)
           .get();
       if (doc.exists && doc.data() != null) {
@@ -292,7 +310,13 @@ class MockAuthService implements AuthService {
   );
 
   @override
-  Future<UserProfile?> signInWithGoogle() => Future.value(mockProfile);
+  Future<UserProfile?> signInWithGoogle() {
+    if (mockProfile != null &&
+        !mockProfile!.email.trim().toLowerCase().endsWith('@iitrpr.ac.in')) {
+      throw Exception('Only @iitrpr.ac.in email addresses are allowed.');
+    }
+    return Future.value(mockProfile);
+  }
 
   @override
   Future<UserProfile?> getUserProfile(String uid) => Future.value(mockProfile);

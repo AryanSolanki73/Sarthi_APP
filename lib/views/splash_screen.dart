@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:sarthi_app/core/app_colors.dart';
 import 'package:sarthi_app/models/user_profile.dart';
+import 'package:sarthi_app/services/auth_service.dart';
 import 'package:sarthi_app/services/credential_storage.dart';
 import 'package:sarthi_app/views/login_page.dart';
 import 'package:sarthi_app/views/profile_page.dart';
@@ -107,7 +108,16 @@ class _SplashScreenState extends State<SplashScreen> {
       if (Firebase.apps.isEmpty) return false;
 
       if (FirebaseAuth.instance.currentUser != null) {
-        return true;
+        final email =
+            FirebaseAuth.instance.currentUser?.email?.trim().toLowerCase() ??
+            '';
+        if (email.endsWith('@iitrpr.ac.in')) {
+          return true;
+        } else {
+          await FirebaseAuthService().signOut();
+          await CredentialStorage.clearCredentials();
+          return false;
+        }
       }
 
       final saved = await CredentialStorage.loadCredentials();
@@ -117,6 +127,10 @@ class _SplashScreenState extends State<SplashScreen> {
       final password = saved['password'] ?? '';
 
       if (email.isNotEmpty && password.isNotEmpty) {
+        if (!email.toLowerCase().endsWith('@iitrpr.ac.in')) {
+          await CredentialStorage.clearCredentials();
+          return false;
+        }
         if (FirebaseAuth.instance.currentUser == null) {
           await FirebaseAuth.instance.signInWithEmailAndPassword(
             email: email,
@@ -184,103 +198,109 @@ class _SplashScreenState extends State<SplashScreen> {
           SafeArea(
             child: SizedBox.expand(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Spacer(),
-
-                // Logo container
-                Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF009B6A),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: const Icon(
-                    Icons.directions_bus,
-                    color: Colors.white,
-                    size: 46,
-                  ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 32.0,
                 ),
-                const SizedBox(height: 24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Spacer(),
 
-                // Title
-                const Text(
-                  'SARTHI',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF14241F),
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 4.0,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Tagline
-                const Text(
-                  'Your campus. One easy ride.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF6B7873),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Shuttle badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F7F1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'EV Carts • Campus Shuttles',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF00875A),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                    // Logo container
+                    Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF009B6A),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: const Icon(
+                        Icons.directions_bus,
+                        color: Colors.white,
+                        size: 46,
+                      ),
                     ),
-                  ),
-                ),
+                    const SizedBox(height: 24),
 
-                const Spacer(),
+                    // Title
+                    const Text(
+                      'SARTHI',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xFF14241F),
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 4.0,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
 
-                // Loading spinner
-                const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Color(0xFF009B6A),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                    // Tagline
+                    const Text(
+                      'Your campus. One easy ride.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xFF6B7873),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
-                // College network label
-                const Text(
-                  'IIT ROPAR TRANSIT NETWORK',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF8B9692),
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                  ),
+                    // Shuttle badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F7F1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'EV Carts • Campus Shuttles',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFF00875A),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+
+                    const Spacer(),
+
+                    // Loading spinner
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Color(0xFF009B6A),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // College network label
+                    const Text(
+                      'IIT ROPAR TRANSIT NETWORK',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xFF8B9692),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
-    ],
-  ),
-);
+    );
   }
 }

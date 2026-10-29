@@ -12,6 +12,12 @@ class AuthController {
   // Only email addresses from this college domain can create or access an account.
   static const collegeDomain = '@iitrpr.ac.in';
 
+  /// Returns whether the provided email ends with the allowed college domain.
+  static bool isCollegeEmail(String? email) {
+    if (email == null) return false;
+    return email.trim().toLowerCase().endsWith(collegeDomain);
+  }
+
   /// Used by the email field in the view to show an error message, if needed.
   String? validateCollegeEmail(String? value) {
     final email = value?.trim().toLowerCase() ?? '';
@@ -72,4 +78,6 @@ class AuthController {
 
   Future<void> saveUserProfile(UserProfile profile) =>
       _service.saveUserProfile(profile);
+
+  Future<void> signOut() => _service.signOut();
 }
