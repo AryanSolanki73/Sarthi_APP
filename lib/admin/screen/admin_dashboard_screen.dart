@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../auth/admin_auth_service.dart';
 import 'student_management_screen.dart';
+import 'transit_management_screens.dart';
 
 const _green = Color(0xFF087F5B);
 const _mint = Color(0xFFE7F6EF);
@@ -23,8 +24,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final _firestore = FirebaseFirestore.instance;
   late Future<_DashboardMetrics> _metrics;
 
-  String get _adminEmail =>
-      FirebaseAuth.instance.currentUser?.email ?? 'Admin';
+  String get _adminEmail => FirebaseAuth.instance.currentUser?.email ?? 'Admin';
 
   @override
   void initState() {
@@ -50,10 +50,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _firestore.collection('buses').where('isActive', isEqualTo: true),
       ),
       _safeCount(
-        _firestore.collection('rides').where(
-          'status',
-          whereIn: const ['pending', 'accepted', 'in_progress'],
-        ),
+        _firestore
+            .collection('rides')
+            .where(
+              'status',
+              whereIn: const ['pending', 'accepted', 'in_progress'],
+            ),
       ),
       _safeCount(_firestore.collection('locations')),
     ]);
@@ -74,10 +76,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   void _openStudents() {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const StudentManagementScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const StudentManagementScreen()),
     );
+  }
+
+  void _openBuses() => _openManagementScreen(const BusManagementScreen());
+
+  void _openCartLocations() =>
+      _openManagementScreen(const CartLocationManagementScreen());
+
+  void _openRides() => _openManagementScreen(const RideManagementScreen());
+
+  void _openTickets() => _openManagementScreen(const TicketManagementScreen());
+
+  void _openManagementScreen(Widget screen) {
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
   }
 
   void _refresh() {
@@ -97,6 +110,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 _DashboardSidebar(
                   adminEmail: _adminEmail,
                   onOpenStudents: _openStudents,
+                  onOpenBuses: _openBuses,
+                  onOpenCartLocations: _openCartLocations,
+                  onOpenRides: _openRides,
+                  onOpenTickets: _openTickets,
                 ),
               Expanded(
                 child: Column(
@@ -116,6 +133,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               metrics: _metrics,
                               onRefresh: _refresh,
                               onOpenStudents: _openStudents,
+                              onOpenBuses: _openBuses,
+                              onOpenCartLocations: _openCartLocations,
+                              onOpenRides: _openRides,
+                              onOpenTickets: _openTickets,
                             ),
                           ),
                         ),
@@ -150,10 +171,18 @@ class _DashboardSidebar extends StatelessWidget {
   const _DashboardSidebar({
     required this.adminEmail,
     required this.onOpenStudents,
+    required this.onOpenBuses,
+    required this.onOpenCartLocations,
+    required this.onOpenRides,
+    required this.onOpenTickets,
   });
 
   final String adminEmail;
   final VoidCallback onOpenStudents;
+  final VoidCallback onOpenBuses;
+  final VoidCallback onOpenCartLocations;
+  final VoidCallback onOpenRides;
+  final VoidCallback onOpenTickets;
 
   @override
   Widget build(BuildContext context) {
@@ -226,20 +255,25 @@ class _DashboardSidebar extends StatelessWidget {
             label: 'Students',
             onTap: onOpenStudents,
           ),
-          const _SidebarItem(
+          _SidebarItem(
             icon: Icons.electric_car_outlined,
-            label: 'EV Cart Fleet',
-            unavailable: true,
+            label: 'EV Cart Locations',
+            onTap: onOpenCartLocations,
           ),
-          const _SidebarItem(
+          _SidebarItem(
             icon: Icons.directions_bus_outlined,
             label: 'Bus Schedules',
-            unavailable: true,
+            onTap: onOpenBuses,
           ),
-          const _SidebarItem(
+          _SidebarItem(
             icon: Icons.confirmation_number_outlined,
             label: 'Rides & Bookings',
-            unavailable: true,
+            onTap: onOpenRides,
+          ),
+          _SidebarItem(
+            icon: Icons.receipt_long_outlined,
+            label: 'Tickets',
+            onTap: onOpenTickets,
           ),
           const _SidebarItem(
             icon: Icons.badge_outlined,
@@ -367,10 +401,7 @@ class _SidebarItem extends StatelessWidget {
 }
 
 class _DashboardTopBar extends StatelessWidget {
-  const _DashboardTopBar({
-    required this.adminEmail,
-    required this.onSignOut,
-  });
+  const _DashboardTopBar({required this.adminEmail, required this.onSignOut});
 
   final String adminEmail;
   final VoidCallback onSignOut;
@@ -422,12 +453,20 @@ class _DashboardContent extends StatelessWidget {
     required this.metrics,
     required this.onRefresh,
     required this.onOpenStudents,
+    required this.onOpenBuses,
+    required this.onOpenCartLocations,
+    required this.onOpenRides,
+    required this.onOpenTickets,
   });
 
   final String adminEmail;
   final Future<_DashboardMetrics> metrics;
   final VoidCallback onRefresh;
   final VoidCallback onOpenStudents;
+  final VoidCallback onOpenBuses;
+  final VoidCallback onOpenCartLocations;
+  final VoidCallback onOpenRides;
+  final VoidCallback onOpenTickets;
 
   @override
   Widget build(BuildContext context) {
@@ -523,7 +562,13 @@ class _DashboardContent extends StatelessWidget {
         const SizedBox(height: 18),
         const _OperationsPanels(),
         const SizedBox(height: 22),
-        _ManagementSection(onOpenStudents: onOpenStudents),
+        _ManagementSection(
+          onOpenStudents: onOpenStudents,
+          onOpenBuses: onOpenBuses,
+          onOpenCartLocations: onOpenCartLocations,
+          onOpenRides: onOpenRides,
+          onOpenTickets: onOpenTickets,
+        ),
       ],
     );
   }
@@ -559,18 +604,20 @@ class _MetricsGrid extends StatelessWidget {
         final columns = constraints.maxWidth >= 1050
             ? 4
             : constraints.maxWidth >= 560
-                ? 2
-                : 1;
+            ? 2
+            : 1;
         const gap = 13.0;
         final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
         return Wrap(
           spacing: gap,
           runSpacing: gap,
           children: values
-              .map((value) => SizedBox(
-                    width: width,
-                    child: _MetricCard(value: value),
-                  ))
+              .map(
+                (value) => SizedBox(
+                  width: width,
+                  child: _MetricCard(value: value),
+                ),
+              )
               .toList(),
         );
       },
@@ -593,7 +640,11 @@ class _MetricCard extends StatelessWidget {
         border: Border.all(color: _line),
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
-          BoxShadow(color: Color(0x0B203B2B), blurRadius: 22, offset: Offset(0, 5)),
+          BoxShadow(
+            color: Color(0x0B203B2B),
+            blurRadius: 22,
+            offset: Offset(0, 5),
+          ),
         ],
       ),
       child: Column(
@@ -702,7 +753,11 @@ class _DashboardPanel extends StatelessWidget {
         border: Border.all(color: _line),
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
-          BoxShadow(color: Color(0x08203B2B), blurRadius: 22, offset: Offset(0, 5)),
+          BoxShadow(
+            color: Color(0x08203B2B),
+            blurRadius: 22,
+            offset: Offset(0, 5),
+          ),
         ],
       ),
       child: Column(
@@ -847,7 +902,8 @@ class _LocationRecordsPanel extends StatelessWidget {
             children: docs.map((doc) {
               final data = doc.data();
               final name = (data['name'] ?? doc.id).toString();
-              final status = (data['status'] ?? 'status unavailable').toString();
+              final status = (data['status'] ?? 'status unavailable')
+                  .toString();
               final updated = _formatTimestamp(data['updatedAt']);
               return ListTile(
                 dense: true,
@@ -855,7 +911,11 @@ class _LocationRecordsPanel extends StatelessWidget {
                 leading: const CircleAvatar(
                   radius: 17,
                   backgroundColor: _mint,
-                  child: Icon(Icons.electric_car_outlined, color: _green, size: 17),
+                  child: Icon(
+                    Icons.electric_car_outlined,
+                    color: _green,
+                    size: 17,
+                  ),
                 ),
                 title: Text(
                   name,
@@ -887,11 +947,11 @@ class _PanelLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const SizedBox(
-        height: 120,
-        child: Center(
-          child: CircularProgressIndicator(color: _green, strokeWidth: 2),
-        ),
-      );
+    height: 120,
+    child: Center(
+      child: CircularProgressIndicator(color: _green, strokeWidth: 2),
+    ),
+  );
 }
 
 class _PanelMessage extends StatelessWidget {
@@ -902,25 +962,25 @@ class _PanelMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        height: 120,
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, color: _muted, size: 21),
-                const SizedBox(height: 8),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: _muted, fontSize: 11),
-                ),
-              ],
+    height: 120,
+    child: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: _muted, size: 21),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _muted, fontSize: 11),
             ),
-          ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _StatusTag extends StatelessWidget {
@@ -934,13 +994,13 @@ class _StatusTag extends StatelessWidget {
     final color = normalized == 'completed'
         ? _green
         : normalized == 'cancelled'
-            ? const Color(0xFFC13C3C)
-            : const Color(0xFFA96508);
+        ? const Color(0xFFC13C3C)
+        : const Color(0xFFA96508);
     final background = normalized == 'completed'
         ? _mint
         : normalized == 'cancelled'
-            ? const Color(0xFFFFF0EF)
-            : const Color(0xFFFFF5DF);
+        ? const Color(0xFFFFF0EF)
+        : const Color(0xFFFFF5DF);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
@@ -949,16 +1009,30 @@ class _StatusTag extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w700),
+        style: TextStyle(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
 }
 
 class _ManagementSection extends StatelessWidget {
-  const _ManagementSection({required this.onOpenStudents});
+  const _ManagementSection({
+    required this.onOpenStudents,
+    required this.onOpenBuses,
+    required this.onOpenCartLocations,
+    required this.onOpenRides,
+    required this.onOpenTickets,
+  });
 
   final VoidCallback onOpenStudents;
+  final VoidCallback onOpenBuses;
+  final VoidCallback onOpenCartLocations;
+  final VoidCallback onOpenRides;
+  final VoidCallback onOpenTickets;
 
   @override
   Widget build(BuildContext context) {
@@ -970,25 +1044,38 @@ class _ManagementSection extends StatelessWidget {
         available: true,
         onTap: onOpenStudents,
       ),
-      const _ManagementItem(
-        title: 'EV Cart Fleet',
-        subtitle: 'Fleet administration is not available yet',
+      _ManagementItem(
+        title: 'EV Cart Locations',
+        subtitle: 'View live cart location and status records',
         icon: Icons.electric_car_outlined,
+        available: true,
+        onTap: onOpenCartLocations,
       ),
-      const _ManagementItem(
+      _ManagementItem(
         title: 'Buses & Routes',
-        subtitle: 'Schedule management is not available yet',
+        subtitle: 'View bus routes, schedules, and seat availability',
         icon: Icons.directions_bus_outlined,
+        available: true,
+        onTap: onOpenBuses,
       ),
       const _ManagementItem(
         title: 'Drivers',
         subtitle: 'Driver management is not available yet',
         icon: Icons.badge_outlined,
       ),
-      const _ManagementItem(
+      _ManagementItem(
         title: 'Rides & Bookings',
-        subtitle: 'Booking management is not available yet',
+        subtitle: 'View student ride requests and assignments',
         icon: Icons.confirmation_number_outlined,
+        available: true,
+        onTap: onOpenRides,
+      ),
+      _ManagementItem(
+        title: 'Tickets',
+        subtitle: 'View booked bus tickets and usage status',
+        icon: Icons.receipt_long_outlined,
+        available: true,
+        onTap: onOpenTickets,
       ),
     ];
 
@@ -997,7 +1084,11 @@ class _ManagementSection extends StatelessWidget {
       children: [
         const Text(
           'Management',
-          style: TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: _ink,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         const SizedBox(height: 5),
         const Text(
@@ -1010,8 +1101,8 @@ class _ManagementSection extends StatelessWidget {
             final columns = constraints.maxWidth >= 1050
                 ? 3
                 : constraints.maxWidth >= 650
-                    ? 2
-                    : 1;
+                ? 2
+                : 1;
             const gap = 12.0;
             final width =
                 (constraints.maxWidth - gap * (columns - 1)) / columns;
@@ -1019,10 +1110,12 @@ class _ManagementSection extends StatelessWidget {
               spacing: gap,
               runSpacing: gap,
               children: items
-                  .map((item) => SizedBox(
-                        width: width,
-                        child: _ManagementCard(item: item),
-                      ))
+                  .map(
+                    (item) => SizedBox(
+                      width: width,
+                      child: _ManagementCard(item: item),
+                    ),
+                  )
                   .toList(),
             );
           },
