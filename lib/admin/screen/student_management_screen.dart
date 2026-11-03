@@ -54,86 +54,122 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
             ),
           ],
         ),
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: _line,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(context).bottom,
             ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                _StudentAvatar(photoUrl: photoUrl, name: name, size: 54),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: _line,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
                     children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          color: _ink,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
+                      _StudentAvatar(photoUrl: photoUrl, name: name, size: 54),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: _ink,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              email,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: _muted,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        email,
-                        style: const TextStyle(color: _muted, fontSize: 13),
-                      ),
+                      _StatusBadge(isComplete: isComplete),
                     ],
                   ),
-                ),
-                _StatusBadge(isComplete: isComplete),
-              ],
-            ),
-            const SizedBox(height: 22),
-            const Divider(color: _line, height: 1),
-            const SizedBox(height: 18),
-            const Text(
-              'PROFILE DETAILS',
-              style: TextStyle(
-                color: _muted,
-                fontSize: 10,
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _DetailTile(icon: Icons.badge_outlined, label: 'Roll Number', value: rollNo),
-            _DetailTile(icon: Icons.apartment_outlined, label: 'Campus Hostel', value: hostel),
-            _DetailTile(icon: Icons.phone_outlined, label: 'Phone Number', value: phone),
-            _DetailTile(icon: Icons.fingerprint_outlined, label: 'User ID', value: docId),
-            const SizedBox(height: 24),
-            SizedBox(
-              height: 46,
-              child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _green,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 22),
+                  const Divider(color: _line, height: 1),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'PROFILE DETAILS',
+                    style: TextStyle(
+                      color: _muted,
+                      fontSize: 10,
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'Close',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                ),
+                  const SizedBox(height: 12),
+                  _DetailTile(
+                    icon: Icons.badge_outlined,
+                    label: 'Roll Number',
+                    value: rollNo,
+                  ),
+                  _DetailTile(
+                    icon: Icons.apartment_outlined,
+                    label: 'Campus Hostel',
+                    value: hostel,
+                  ),
+                  _DetailTile(
+                    icon: Icons.phone_outlined,
+                    label: 'Phone Number',
+                    value: phone,
+                  ),
+                  _DetailTile(
+                    icon: Icons.fingerprint_outlined,
+                    label: 'User ID',
+                    value: docId,
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: 46,
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _green,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -755,23 +791,26 @@ class _DetailTile extends StatelessWidget {
             child: Icon(icon, size: 16, color: _green),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(color: _muted, fontSize: 10),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: _ink,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(color: _muted, fontSize: 10),
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  softWrap: true,
+                  style: const TextStyle(
+                    color: _ink,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
