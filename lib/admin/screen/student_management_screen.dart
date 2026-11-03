@@ -184,7 +184,9 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           // Top bar matching Admin Dashboard TopBar
           Container(
             height: 70,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.sizeOf(context).width < 600 ? 12 : 20,
+            ),
             decoration: const BoxDecoration(
               color: Colors.white,
               border: Border(bottom: BorderSide(color: _line)),
@@ -196,39 +198,50 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   onPressed: () => Navigator.of(context).maybePop(),
                   icon: const Icon(Icons.arrow_back, color: _ink),
                 ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Workspace  /  ',
-                  style: TextStyle(color: _muted, fontSize: 13),
-                ),
-                const Text(
-                  'Students',
-                  style: TextStyle(
-                    color: _ink,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (MediaQuery.sizeOf(context).width >= 380)
+                        const Text(
+                          'Workspace  /  ',
+                          style: TextStyle(color: _muted, fontSize: 13),
+                        ),
+                      const Text(
+                        'Students',
+                        style: TextStyle(
+                          color: _ink,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: _mint,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.shield_outlined, size: 14, color: _green),
-                      SizedBox(width: 6),
-                      Text(
-                        'Admin Access',
-                        style: TextStyle(
-                          color: _green,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+                      const Icon(Icons.shield_outlined, size: 14, color: _green),
+                      if (MediaQuery.sizeOf(context).width >= 420) ...[
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Admin Access',
+                          style: TextStyle(
+                            color: _green,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -239,7 +252,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           // Main Scrollable Area
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
+              padding: EdgeInsets.fromLTRB(
+                MediaQuery.sizeOf(context).width < 600 ? 16 : 24,
+                MediaQuery.sizeOf(context).width < 600 ? 20 : 28,
+                MediaQuery.sizeOf(context).width < 600 ? 16 : 24,
+                36,
+              ),
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1420),
