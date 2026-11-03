@@ -563,7 +563,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                   setState(() => _isRequesting = true);
                   try {
                     await _controller.requestCart();
-                    _showMessage('EV Cart request submitted to Firebase!');
+                    _showMessage('EV Cart requested successfully!');
                   } catch (e) {
                     _showMessage('Failed to request cart: $e');
                   } finally {
@@ -908,7 +908,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
               ),
               const SizedBox(height: 4),
               const Text(
-                'Stored securely in Firebase',
+                'Stored securely in your account. Show the QR code to the driver when boarding.',
                 style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
               ),
               const SizedBox(height: 16),
