@@ -17,7 +17,11 @@ abstract class TransitService {
     required String drop,
   });
   Future<void> cancelRideRequest(String requestId);
-  Future<Ticket> bookBus(Bus bus);
+  Future<Ticket> bookBus(
+    Bus bus, {
+    required String pickup,
+    required String destination,
+  });
   Stream<List<Ticket>> streamUserTickets();
   Future<void> seedInitialDataIfEmpty();
 }
@@ -141,7 +145,11 @@ class FirebaseTransitService implements TransitService {
 
   /// Books a seat on a city bus, decrementing available seats in Firestore atomically.
   @override
-  Future<Ticket> bookBus(Bus bus) async {
+  Future<Ticket> bookBus(
+    Bus bus, {
+    required String pickup,
+    required String destination,
+  }) async {
     final busDocRef = _busesRef.doc(bus.id);
     final now = DateTime.now();
     final ticketId = 'TKT-${now.millisecondsSinceEpoch.toString().substring(7)}';
@@ -168,6 +176,7 @@ class FirebaseTransitService implements TransitService {
         availableSeats: available - 1,
         totalSeats: bus.totalSeats,
         registrationNumber: bus.registrationNumber,
+        stops: bus.stops,
       );
 
       final ticket = Ticket(
@@ -175,7 +184,11 @@ class FirebaseTransitService implements TransitService {
         bus: updatedBus,
         userId: _currentUserId,
         userName: _currentUserName,
+        userEmail: _currentUserEmail,
+        pickup: pickup,
+        destination: destination,
         isUsed: false,
+        status: 'Valid',
         bookedAt: now,
       );
 
@@ -213,6 +226,13 @@ class FirebaseTransitService implements TransitService {
             'totalSeats': 32,
             'registrationNumber': 'PB-12-A-4019',
             'isActive': true,
+            'stops': [
+              'Main Campus (Main Gate)',
+              'Satluj Hostel Turn',
+              'Bara Pind Junction',
+              'Rupnagar Old Bus Stand',
+              'Rupnagar City Centre',
+            ],
           },
           {
             'route': 'Main Campus → Morinda Railway Station',
@@ -221,6 +241,13 @@ class FirebaseTransitService implements TransitService {
             'totalSeats': 32,
             'registrationNumber': 'PB-12-B-8821',
             'isActive': true,
+            'stops': [
+              'Main Campus (Main Gate)',
+              'Utility Block Exit',
+              'Ropar Bypass',
+              'Chamkaur Sahib',
+              'Morinda Railway Station',
+            ],
           },
           {
             'route': 'Main Campus → Chandigarh ISBT (Sector 43)',
@@ -229,6 +256,13 @@ class FirebaseTransitService implements TransitService {
             'totalSeats': 45,
             'registrationNumber': 'PB-12-C-1092',
             'isActive': true,
+            'stops': [
+              'Main Campus (Main Gate)',
+              'Kurali Bus Stop',
+              'Kharar Junction',
+              'Mohali Phase 7',
+              'Chandigarh ISBT (Sector 43)',
+            ],
           },
           {
             'route': 'Hostel Sector → Academic Block Shuttle',
@@ -237,6 +271,15 @@ class FirebaseTransitService implements TransitService {
             'totalSeats': 20,
             'registrationNumber': 'PB-12-EV-01',
             'isActive': true,
+            'stops': [
+              'Satluj Hostel',
+              'Beas Hostel',
+              'Chenab Hostel',
+              'Brahmaputra Boys Hostel',
+              'Nalanda Library',
+              'J.C. Bose Block',
+              'Super Academic Building',
+            ],
           },
         ];
 

@@ -24,11 +24,23 @@ class CartLocation {
   final int batteryLevel;
   final DateTime? updatedAt;
 
-  /// Returns true only if the vehicle is actively marked online by the driver.
+  /// Returns true only if the vehicle is actively marked online by the driver
+  /// AND has sent a recent heartbeat (within 45 seconds).
+  /// If the pilot app was closed for some time, this returns false so the cart disappears.
   bool get isOnline {
     final s = status.trim().toLowerCase();
     if (s == 'offline' || !driverOnline) return false;
-    return s == 'active' || s == 'online' || driverOnline;
+    if (s != 'active' && s != 'online' && !driverOnline) return false;
+
+    // Heartbeat freshness check: If the driver closed the app or stopped updating,
+    // the cart is considered offline and disappears from the passenger map.
+    if (updatedAt != null) {
+      final elapsed = DateTime.now().difference(updatedAt!);
+      if (elapsed.inSeconds > 45) {
+        return false;
+      }
+    }
+    return true;
   }
 
   factory CartLocation.fromDoc(DocumentSnapshot doc) {

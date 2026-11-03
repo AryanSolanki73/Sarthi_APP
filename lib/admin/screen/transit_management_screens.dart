@@ -348,19 +348,21 @@ class _AdminFirestoreListScreenState extends State<_AdminFirestoreListScreen> {
                       StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                         stream: _records,
                         builder: (context, snapshot) {
-                          if (snapshot.hasError)
+                          if (snapshot.hasError) {
                             return _ListMessage(
                               icon: Icons.cloud_off_outlined,
                               message: _firestoreError(snapshot.error),
                             );
+                          }
                           if (snapshot.connectionState ==
-                              ConnectionState.waiting)
+                              ConnectionState.waiting) {
                             return const Padding(
                               padding: EdgeInsets.all(48),
                               child: Center(
                                 child: CircularProgressIndicator(color: _green),
                               ),
                             );
+                          }
                           final docs = snapshot.data?.docs ?? [];
                           final filtered = docs
                               .where(
@@ -372,16 +374,18 @@ class _AdminFirestoreListScreenState extends State<_AdminFirestoreListScreen> {
                                         .contains(_search),
                               )
                               .toList();
-                          if (docs.isEmpty)
+                          if (docs.isEmpty) {
                             return const _ListMessage(
                               icon: Icons.inbox_outlined,
                               message: 'No records are available in this collection.',
                             );
-                          if (filtered.isEmpty)
+                          }
+                          if (filtered.isEmpty) {
                             return const _ListMessage(
                               icon: Icons.search_off,
                               message: 'No records match your search.',
                             );
+                          }
                           return Column(
                             children: filtered
                                 .map(
@@ -534,12 +538,14 @@ class _ListMessage extends StatelessWidget {
 
 String _firestoreError(Object? error) {
   if (error is FirebaseException) {
-    if (error.code == 'permission-denied' || error.code == 'unauthenticated')
+    if (error.code == 'permission-denied' || error.code == 'unauthenticated') {
       return 'Access denied. Check that Firestore rules allow this admin account to read these records.';
+    }
     if (error.code == 'unavailable' ||
         error.code == 'deadline-exceeded' ||
-        error.code == 'network-request-failed')
+        error.code == 'network-request-failed') {
       return 'Could not reach Firestore. Check the network and try refreshing.';
+    }
     return 'Firestore could not load these records (${error.code}).';
   }
   return 'Could not load these records. Try refreshing.';

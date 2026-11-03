@@ -22,6 +22,7 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final _firestore = FirebaseFirestore.instance;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late Future<_DashboardMetrics> _metrics;
 
   String get _adminEmail => FirebaseAuth.instance.currentUser?.email ?? 'Admin';
@@ -99,12 +100,50 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _pageBackground,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final showSidebar = constraints.maxWidth >= 1000;
-          return Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showSidebar = constraints.maxWidth >= 1000;
+        return Scaffold(
+          key: _scaffoldKey,
+          backgroundColor: _pageBackground,
+          drawer: showSidebar
+              ? null
+              : Drawer(
+                  backgroundColor: Colors.white,
+                  surfaceTintColor: Colors.transparent,
+                  child: SafeArea(
+                    child: _DashboardSidebar(
+                      adminEmail: _adminEmail,
+                      onOpenStudents: () {
+                        Navigator.of(context).pop();
+                        _openStudents();
+                      },
+                      onOpenBuses: () {
+                        Navigator.of(context).pop();
+                        _openBuses();
+                      },
+                      onOpenCartLocations: () {
+                        Navigator.of(context).pop();
+                        _openCartLocations();
+                      },
+                      onOpenRides: () {
+                        Navigator.of(context).pop();
+                        _openRides();
+                      },
+                      onOpenTickets: () {
+                        Navigator.of(context).pop();
+                        _openTickets();
+                      },
+                      isDrawer: true,
+                      onClose: () => Navigator.of(context).pop(),
+                      onSignOut: () {
+                        Navigator.of(context).pop();
+                        _signOut();
+                      },
+                    ),
+                  ),
+                ),
+          body: Row(
             children: [
               if (showSidebar)
                 _DashboardSidebar(
@@ -121,10 +160,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     _DashboardTopBar(
                       adminEmail: _adminEmail,
                       onSignOut: _signOut,
+                      showMenuButton: !showSidebar,
+                      onOpenSidebar: () =>
+                          _scaffoldKey.currentState?.openDrawer(),
                     ),
                     Expanded(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
+                        padding: EdgeInsets.fromLTRB(
+                          showSidebar ? 24 : 16,
+                          showSidebar ? 28 : 20,
+                          showSidebar ? 24 : 16,
+                          36,
+                        ),
                         child: Center(
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 1420),
@@ -146,9 +193,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
               ),
             ],
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -175,6 +222,9 @@ class _DashboardSidebar extends StatelessWidget {
     required this.onOpenCartLocations,
     required this.onOpenRides,
     required this.onOpenTickets,
+    this.isDrawer = false,
+    this.onClose,
+    this.onSignOut,
   });
 
   final String adminEmail;
@@ -183,162 +233,205 @@ class _DashboardSidebar extends StatelessWidget {
   final VoidCallback onOpenCartLocations;
   final VoidCallback onOpenRides;
   final VoidCallback onOpenTickets;
+  final bool isDrawer;
+  final VoidCallback? onClose;
+  final VoidCallback? onSignOut;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 238,
-      decoration: const BoxDecoration(
+      width: isDrawer ? null : 238,
+      decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(right: BorderSide(color: _line)),
+        border: isDrawer ? null : const Border(right: BorderSide(color: _line)),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 25, 16, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: _green,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: const Icon(Icons.alt_route, color: Colors.white),
-              ),
-              const SizedBox(width: 11),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'SARTHI',
-                    style: TextStyle(
-                      color: _ink,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 18),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: constraints.hasBoundedHeight
+                  ? BoxConstraints(minHeight: constraints.maxHeight)
+                  : const BoxConstraints(),
+              child: IntrinsicHeight(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _green,
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                          child: const Icon(
+                            Icons.alt_route,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 11),
+                        const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'SARTHI',
+                              style: TextStyle(
+                                color: _ink,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              'TRANSIT CONTROL',
+                              style: TextStyle(
+                                color: _muted,
+                                fontSize: 9,
+                                letterSpacing: 1.2,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (isDrawer && onClose != null) ...[
+                          const Spacer(),
+                          IconButton(
+                            tooltip: 'Close menu',
+                            icon: const Icon(
+                              Icons.close,
+                              color: _muted,
+                              size: 20,
+                            ),
+                            onPressed: onClose,
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                  Text(
-                    'TRANSIT CONTROL',
-                    style: TextStyle(
-                      color: _muted,
-                      fontSize: 9,
-                      letterSpacing: 1.2,
-                      fontWeight: FontWeight.w700,
+                    const SizedBox(height: 28),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 12, bottom: 10),
+                      child: Text(
+                        'WORKSPACE',
+                        style: TextStyle(
+                          color: _muted,
+                          fontSize: 10,
+                          letterSpacing: 1.3,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 34),
-          const Padding(
-            padding: EdgeInsets.only(left: 12, bottom: 10),
-            child: Text(
-              'WORKSPACE',
-              style: TextStyle(
-                color: _muted,
-                fontSize: 10,
-                letterSpacing: 1.3,
-                fontWeight: FontWeight.w800,
+                    _SidebarItem(
+                      icon: Icons.grid_view_rounded,
+                      label: 'Overview',
+                      selected: true,
+                      onTap: isDrawer ? onClose : null,
+                    ),
+                    _SidebarItem(
+                      icon: Icons.people_outline,
+                      label: 'Students',
+                      onTap: onOpenStudents,
+                    ),
+                    _SidebarItem(
+                      icon: Icons.electric_car_outlined,
+                      label: 'EV Cart Locations',
+                      onTap: onOpenCartLocations,
+                    ),
+                    _SidebarItem(
+                      icon: Icons.directions_bus_outlined,
+                      label: 'Bus Schedules',
+                      onTap: onOpenBuses,
+                    ),
+                    _SidebarItem(
+                      icon: Icons.confirmation_number_outlined,
+                      label: 'Rides & Bookings',
+                      onTap: onOpenRides,
+                    ),
+                    _SidebarItem(
+                      icon: Icons.receipt_long_outlined,
+                      label: 'Tickets',
+                      onTap: onOpenTickets,
+                    ),
+                    const _SidebarItem(
+                      icon: Icons.badge_outlined,
+                      label: 'Drivers',
+                      unavailable: true,
+                    ),
+                    const Spacer(),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7FAF8),
+                        border: Border.all(color: _line),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'OPERATING AREA',
+                            style: TextStyle(
+                              color: _muted,
+                              fontSize: 9,
+                              letterSpacing: 1,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(height: 7),
+                          Text(
+                            'IIT Ropar Campus',
+                            style: TextStyle(
+                              color: _ink,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Campus mobility services',
+                            style: TextStyle(color: _muted, fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(color: _line),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _AdminAvatar(email: adminEmail, size: 36),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            adminEmail,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _ink,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                        if (onSignOut != null)
+                          IconButton(
+                            tooltip: 'Sign out',
+                            icon: const Icon(
+                              Icons.logout,
+                              color: _muted,
+                              size: 18,
+                            ),
+                            onPressed: onSignOut,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const _SidebarItem(
-            icon: Icons.grid_view_rounded,
-            label: 'Overview',
-            selected: true,
-          ),
-          _SidebarItem(
-            icon: Icons.people_outline,
-            label: 'Students',
-            onTap: onOpenStudents,
-          ),
-          _SidebarItem(
-            icon: Icons.electric_car_outlined,
-            label: 'EV Cart Locations',
-            onTap: onOpenCartLocations,
-          ),
-          _SidebarItem(
-            icon: Icons.directions_bus_outlined,
-            label: 'Bus Schedules',
-            onTap: onOpenBuses,
-          ),
-          _SidebarItem(
-            icon: Icons.confirmation_number_outlined,
-            label: 'Rides & Bookings',
-            onTap: onOpenRides,
-          ),
-          _SidebarItem(
-            icon: Icons.receipt_long_outlined,
-            label: 'Tickets',
-            onTap: onOpenTickets,
-          ),
-          const _SidebarItem(
-            icon: Icons.badge_outlined,
-            label: 'Drivers',
-            unavailable: true,
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF7FAF8),
-              border: Border.all(color: _line),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'OPERATING AREA',
-                  style: TextStyle(
-                    color: _muted,
-                    fontSize: 9,
-                    letterSpacing: 1,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                SizedBox(height: 7),
-                Text(
-                  'IIT Ropar Campus',
-                  style: TextStyle(
-                    color: _ink,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Campus mobility services',
-                  style: TextStyle(color: _muted, fontSize: 10),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Divider(color: _line),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _AdminAvatar(email: adminEmail, size: 36),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  adminEmail,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _ink,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -401,26 +494,49 @@ class _SidebarItem extends StatelessWidget {
 }
 
 class _DashboardTopBar extends StatelessWidget {
-  const _DashboardTopBar({required this.adminEmail, required this.onSignOut});
+  const _DashboardTopBar({
+    required this.adminEmail,
+    required this.onSignOut,
+    this.showMenuButton = false,
+    this.onOpenSidebar,
+  });
 
   final String adminEmail;
   final VoidCallback onSignOut;
+  final bool showMenuButton;
+  final VoidCallback? onOpenSidebar;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 70,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: EdgeInsets.symmetric(horizontal: showMenuButton ? 12 : 24),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: _line)),
       ),
       child: Row(
         children: [
-          const Text('Workspace  /  ', style: TextStyle(color: _muted)),
-          const Text(
-            'Overview',
-            style: TextStyle(color: _ink, fontWeight: FontWeight.w700),
+          if (showMenuButton) ...[
+            IconButton(
+              tooltip: 'Open navigation menu',
+              icon: const Icon(Icons.menu, color: _ink),
+              onPressed: onOpenSidebar,
+            ),
+            const SizedBox(width: 4),
+          ],
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (MediaQuery.sizeOf(context).width >= 380)
+                  const Text('Workspace  /  ', style: TextStyle(color: _muted)),
+                const Text(
+                  'Overview',
+                  style: TextStyle(color: _ink, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
           ),
           const Spacer(),
           if (MediaQuery.sizeOf(context).width >= 620) ...[
