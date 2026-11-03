@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../auth/admin_auth_service.dart';
+import 'bus_schedule_screen.dart';
 import 'student_management_screen.dart';
 import 'transit_management_screens.dart';
 
@@ -94,6 +95,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
   }
 
+  void _openBusSchedules() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const StudentManagementScreen(),
+      ),
+    );
+  }
+
+  void _openBusSchedules() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const BusScheduleScreen(),
+      ),
+    );
+  }
+
   void _refresh() {
     setState(() => _metrics = _loadMetrics());
   }
@@ -118,21 +135,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         Navigator.of(context).pop();
                         _openStudents();
                       },
-                      onOpenBuses: () {
+                      onOpenBusSchedules: () {
                         Navigator.of(context).pop();
-                        _openBuses();
-                      },
-                      onOpenCartLocations: () {
-                        Navigator.of(context).pop();
-                        _openCartLocations();
-                      },
-                      onOpenRides: () {
-                        Navigator.of(context).pop();
-                        _openRides();
-                      },
-                      onOpenTickets: () {
-                        Navigator.of(context).pop();
-                        _openTickets();
+                        _openBusSchedules();
                       },
                       isDrawer: true,
                       onClose: () => Navigator.of(context).pop(),
@@ -149,10 +154,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 _DashboardSidebar(
                   adminEmail: _adminEmail,
                   onOpenStudents: _openStudents,
-                  onOpenBuses: _openBuses,
-                  onOpenCartLocations: _openCartLocations,
-                  onOpenRides: _openRides,
-                  onOpenTickets: _openTickets,
+                  onOpenBusSchedules: _openBusSchedules,
                 ),
               Expanded(
                 child: Column(
@@ -180,10 +182,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               metrics: _metrics,
                               onRefresh: _refresh,
                               onOpenStudents: _openStudents,
-                              onOpenBuses: _openBuses,
-                              onOpenCartLocations: _openCartLocations,
-                              onOpenRides: _openRides,
-                              onOpenTickets: _openTickets,
+                              onOpenBusSchedules: _openBusSchedules,
                             ),
                           ),
                         ),
@@ -218,10 +217,7 @@ class _DashboardSidebar extends StatelessWidget {
   const _DashboardSidebar({
     required this.adminEmail,
     required this.onOpenStudents,
-    required this.onOpenBuses,
-    required this.onOpenCartLocations,
-    required this.onOpenRides,
-    required this.onOpenTickets,
+    required this.onOpenBusSchedules,
     this.isDrawer = false,
     this.onClose,
     this.onSignOut,
@@ -229,10 +225,7 @@ class _DashboardSidebar extends StatelessWidget {
 
   final String adminEmail;
   final VoidCallback onOpenStudents;
-  final VoidCallback onOpenBuses;
-  final VoidCallback onOpenCartLocations;
-  final VoidCallback onOpenRides;
-  final VoidCallback onOpenTickets;
+  final VoidCallback onOpenBusSchedules;
   final bool isDrawer;
   final VoidCallback? onClose;
   final VoidCallback? onSignOut;
@@ -340,7 +333,10 @@ class _DashboardSidebar extends StatelessWidget {
                     _SidebarItem(
                       icon: Icons.directions_bus_outlined,
                       label: 'Bus Schedules',
-                      onTap: onOpenBuses,
+                      onTap: () {
+                        if (isDrawer && onClose != null) onClose!();
+                        onOpenBusSchedules();
+                      },
                     ),
                     _SidebarItem(
                       icon: Icons.confirmation_number_outlined,
@@ -569,20 +565,14 @@ class _DashboardContent extends StatelessWidget {
     required this.metrics,
     required this.onRefresh,
     required this.onOpenStudents,
-    required this.onOpenBuses,
-    required this.onOpenCartLocations,
-    required this.onOpenRides,
-    required this.onOpenTickets,
+    required this.onOpenBusSchedules,
   });
 
   final String adminEmail;
   final Future<_DashboardMetrics> metrics;
   final VoidCallback onRefresh;
   final VoidCallback onOpenStudents;
-  final VoidCallback onOpenBuses;
-  final VoidCallback onOpenCartLocations;
-  final VoidCallback onOpenRides;
-  final VoidCallback onOpenTickets;
+  final VoidCallback onOpenBusSchedules;
 
   @override
   Widget build(BuildContext context) {
@@ -680,10 +670,7 @@ class _DashboardContent extends StatelessWidget {
         const SizedBox(height: 22),
         _ManagementSection(
           onOpenStudents: onOpenStudents,
-          onOpenBuses: onOpenBuses,
-          onOpenCartLocations: onOpenCartLocations,
-          onOpenRides: onOpenRides,
-          onOpenTickets: onOpenTickets,
+          onOpenBusSchedules: onOpenBusSchedules,
         ),
       ],
     );
@@ -1138,17 +1125,11 @@ class _StatusTag extends StatelessWidget {
 class _ManagementSection extends StatelessWidget {
   const _ManagementSection({
     required this.onOpenStudents,
-    required this.onOpenBuses,
-    required this.onOpenCartLocations,
-    required this.onOpenRides,
-    required this.onOpenTickets,
+    required this.onOpenBusSchedules,
   });
 
   final VoidCallback onOpenStudents;
-  final VoidCallback onOpenBuses;
-  final VoidCallback onOpenCartLocations;
-  final VoidCallback onOpenRides;
-  final VoidCallback onOpenTickets;
+  final VoidCallback onOpenBusSchedules;
 
   @override
   Widget build(BuildContext context) {
@@ -1168,11 +1149,11 @@ class _ManagementSection extends StatelessWidget {
         onTap: onOpenCartLocations,
       ),
       _ManagementItem(
-        title: 'Buses & Routes',
-        subtitle: 'View bus routes, schedules, and seat availability',
+        title: 'Bus Schedules',
+        subtitle: 'Set and manage daily routes & timetables',
         icon: Icons.directions_bus_outlined,
         available: true,
-        onTap: onOpenBuses,
+        onTap: onOpenBusSchedules,
       ),
       const _ManagementItem(
         title: 'Drivers',
