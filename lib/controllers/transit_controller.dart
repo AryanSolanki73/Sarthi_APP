@@ -27,6 +27,7 @@ class TransitController extends ChangeNotifier {
   StreamSubscription<List<CartLocation>>? _locationsSub;
   StreamSubscription<List<RideRequest>>? _ridesSub;
   StreamSubscription<List<Ticket>>? _ticketsSub;
+  Timer? _staleCartTimer;
 
   /// Returns the current active ride if the student has requested one.
   RideRequest? get activeRide {
@@ -46,6 +47,18 @@ class TransitController extends ChangeNotifier {
     } catch (_) {}
 
     _subscribeToFirebaseStreams();
+
+    // Check periodically for stale carts whose pilot app closed or stopped updating
+    _staleCartTimer?.cancel();
+    _staleCartTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (cartLocations.isNotEmpty) {
+        final activeList = cartLocations.where((c) => c.isOnline).toList();
+        if (activeList.length != cartLocations.length) {
+          cartLocations = activeList;
+          notifyListeners();
+        }
+      }
+    });
 
     isLoading = false;
     notifyListeners();
@@ -139,8 +152,19 @@ class TransitController extends ChangeNotifier {
   }
 
   /// Reserves a bus seat and creates a verified ticket in Firebase.
-  Future<Ticket> bookBus(Bus bus) async {
-    final ticket = await _service.bookBus(bus);
+  Future<Ticket> bookBus(
+    Bus bus, {
+    required String pickup,
+    required String destination,
+  }) async {
+    final ticket = await _service.bookBus(
+      bus,
+      pickup: pickup,
+      destination: destination,
+    );
+    if (!tickets.any((t) => t.id == ticket.id)) {
+      tickets = [ticket, ...tickets];
+    }
     notifyListeners();
     return ticket;
   }
@@ -151,6 +175,7 @@ class TransitController extends ChangeNotifier {
     _locationsSub?.cancel();
     _ridesSub?.cancel();
     _ticketsSub?.cancel();
+    _staleCartTimer?.cancel();
     super.dispose();
   }
 }

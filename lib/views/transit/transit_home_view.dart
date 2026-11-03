@@ -236,7 +236,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
     RideRequest? latestNoticeRide;
     if (activeRide == null) {
       for (final r in _controller.rides) {
-        if ((r.status == 'rejected' || r.status == 'completed') &&
+        if ((r.status == 'rejected' || r.status == 'completed' || r.status == 'cancelled') &&
             !_dismissedNoticeRideIds.contains(r.id) &&
             DateTime.now().difference(r.createdAt).inMinutes < 60) {
           latestNoticeRide = r;
@@ -289,15 +289,41 @@ class _TransitHomeViewState extends State<TransitHomeView> {
 
   Widget _rideNoticeBanner(RideRequest ride) {
     final isRejected = ride.status == 'rejected';
-    final bgColor = isRejected ? const Color(0xFFFEF2F2) : const Color(0xFFECFDF5);
-    final borderColor = isRejected ? const Color(0xFFFCA5A5) : const Color(0xFFA7F3D0);
-    final titleColor = isRejected ? const Color(0xFF991B1B) : const Color(0xFF065F46);
-    final subColor = isRejected ? const Color(0xFFB91C1C) : const Color(0xFF047857);
-    final iconData = isRejected ? Icons.cancel_outlined : Icons.check_circle_outline;
-    final title = isRejected ? 'Ride Request Declined' : 'Ride Completed!';
-    final message = isRejected
-        ? 'The driver was unable to accept your ride from ${ride.pickup} to ${ride.drop}. You can try requesting again.'
-        : 'You arrived at ${ride.drop}. Thank you for traveling with Sarthi!';
+    final isCancelled = ride.status == 'cancelled';
+
+    Color bgColor;
+    Color borderColor;
+    Color titleColor;
+    Color subColor;
+    IconData iconData;
+    String title;
+    String message;
+
+    if (isRejected) {
+      bgColor = const Color(0xFFFEF2F2);
+      borderColor = const Color(0xFFFCA5A5);
+      titleColor = const Color(0xFF991B1B);
+      subColor = const Color(0xFFB91C1C);
+      iconData = Icons.cancel_outlined;
+      title = 'Ride Request Declined';
+      message = 'The driver was unable to accept your ride from ${ride.pickup} to ${ride.drop}. You can try requesting again.';
+    } else if (isCancelled) {
+      bgColor = const Color(0xFFFFFBEB);
+      borderColor = const Color(0xFFFDE68A);
+      titleColor = const Color(0xFFB45309);
+      subColor = const Color(0xFF92400E);
+      iconData = Icons.info_outline_rounded;
+      title = 'Ride Request Cancelled';
+      message = 'Your ride request from ${ride.pickup} to ${ride.drop} has been cancelled.';
+    } else {
+      bgColor = const Color(0xFFECFDF5);
+      borderColor = const Color(0xFFA7F3D0);
+      titleColor = const Color(0xFF065F46);
+      subColor = const Color(0xFF047857);
+      iconData = Icons.check_circle_outline;
+      title = 'Ride Completed!';
+      message = 'You arrived at ${ride.drop}. Thank you for traveling with Sarthi!';
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -478,7 +504,6 @@ class _TransitHomeViewState extends State<TransitHomeView> {
         OutlinedButton.icon(
           onPressed: () async {
             await _controller.cancelActiveRide(ride.id);
-            _showMessage('Ride request cancelled.');
           },
           icon: const Icon(Icons.close, size: 16, color: Colors.redAccent),
           label: const Text(
@@ -563,9 +588,8 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                   setState(() => _isRequesting = true);
                   try {
                     await _controller.requestCart();
-                    _showMessage('EV Cart request submitted to Firebase!');
                   } catch (e) {
-                    _showMessage('Failed to request cart: $e');
+                    debugPrint('Failed to request cart: $e');
                   } finally {
                     if (mounted) setState(() => _isRequesting = false);
                   }
@@ -644,33 +668,191 @@ class _TransitHomeViewState extends State<TransitHomeView> {
     ),
   );
 
-  Widget _busList() => _controller.buses.isEmpty
-      ? const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.directions_bus_outlined,
-                size: 48,
-                color: Color(0xFF9CA3AF),
+  Widget _busList() {
+    final activeTickets = _controller.tickets.where((t) => !t.isConfirmed).toList();
+    final latestActiveTicket = activeTickets.isNotEmpty
+        ? activeTickets.first
+        : (_controller.tickets.isNotEmpty ? _controller.tickets.first : null);
+
+    if (_controller.buses.isEmpty && latestActiveTicket == null) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.directions_bus_outlined,
+              size: 48,
+              color: Color(0xFF9CA3AF),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'No scheduled buses found',
+              style: TextStyle(color: Color(0xFF6B7280), fontSize: 15),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (latestActiveTicket != null) ...[
+          _activeBusTicketBanner(latestActiveTicket),
+          const SizedBox(height: 16),
+        ],
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Scheduled Campus Buses',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            if (_controller.tickets.isNotEmpty)
+              GestureDetector(
+                onTap: _ticketsSheet,
+                child: Text(
+                  'My Tickets (${_controller.tickets.length})',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.emerald,
+                  ),
+                ),
               ),
-              SizedBox(height: 12),
-              Text(
-                'No scheduled buses found',
-                style: TextStyle(color: Color(0xFF6B7280), fontSize: 15),
+          ],
+        ),
+        const SizedBox(height: 12),
+        for (final bus in _controller.buses) ...[
+          _busCard(bus),
+          const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
+  Widget _activeBusTicketBanner(Ticket ticket) {
+    final isConfirmed = ticket.isConfirmed;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isConfirmed ? const Color(0xFFEFF6FF) : const Color(0xFFECFDF5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isConfirmed ? const Color(0xFFBFDBFE) : const Color(0xFFA7F3D0),
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isConfirmed ? Icons.verified_rounded : Icons.qr_code_2_rounded,
+                    color: isConfirmed ? const Color(0xFF2563EB) : AppColors.emerald,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isConfirmed ? 'Boarding Confirmed' : 'Active Bus Ticket',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: isConfirmed ? const Color(0xFF1E40AF) : const Color(0xFF065F46),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isConfirmed ? const Color(0xFFDBEAFE) : const Color(0xFFDCFCE7),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  isConfirmed ? 'BOARDED' : 'VALID PASS',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: isConfirmed ? const Color(0xFF1D4ED8) : const Color(0xFF15803D),
+                  ),
+                ),
               ),
             ],
           ),
-        )
-      : ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: _controller.buses.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final bus = _controller.buses[index];
-            return _busCard(bus);
-          },
-        );
+          const SizedBox(height: 10),
+          Text(
+            ticket.bus.route,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.pin_drop_outlined, size: 14, color: Color(0xFF6B7280)),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  '${ticket.pickup} ➔ ${ticket.destination}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF4B5563),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Departure: ${ticket.bus.departureTime} · Bus: ${ticket.bus.registrationNumber}',
+            style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _showTicketDialog(ticket),
+              icon: Icon(
+                isConfirmed ? Icons.visibility_outlined : Icons.qr_code_rounded,
+                size: 16,
+                color: Colors.white,
+              ),
+              label: Text(
+                isConfirmed ? 'View Boarding Receipt' : 'Show QR Ticket to Driver',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isConfirmed ? const Color(0xFF2563EB) : AppColors.emerald,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _busCard(Bus bus) => Container(
     padding: const EdgeInsets.all(16),
@@ -762,14 +944,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
             ElevatedButton(
               onPressed: bus.isFull
                   ? null
-                  : () async {
-                      try {
-                        final ticket = await _controller.bookBus(bus);
-                        _showTicketDialog(ticket);
-                      } catch (e) {
-                        _showMessage('Booking failed: $e');
-                      }
-                    },
+                  : () => _openBookSeatModal(bus),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.emerald,
                 foregroundColor: Colors.white,
@@ -792,18 +967,331 @@ class _TransitHomeViewState extends State<TransitHomeView> {
     ),
   );
 
+  void _openBookSeatModal(Bus bus) {
+    final stops = bus.availableStops;
+    String selectedPickup = stops.isNotEmpty ? stops.first : 'Main Campus';
+    String selectedDrop = stops.length > 1 ? stops.last : selectedPickup;
+    bool isBooking = false;
+    String? errorMsg;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bCtx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final isSameStop = selectedPickup == selectedDrop;
+
+          return Container(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD1D5DB),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.emerald.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.directions_bus_rounded,
+                        color: AppColors.emerald,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            bus.route,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF18181B),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Departure: ${bus.departureTime} · ${bus.registrationNumber}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF71717A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4FDF8),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFA7F3D0)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.event_seat_rounded,
+                          size: 16, color: Color(0xFF059669)),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${bus.availableSeats} of ${bus.totalSeats} seats remaining',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF047857),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Select Boarding & Destination Stops',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF3F3F46),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Pickup Stop
+                _stopPickerDropdown(
+                  label: 'Boarding Point (Pickup)',
+                  icon: Icons.trip_origin_rounded,
+                  iconColor: AppColors.emerald,
+                  value: selectedPickup,
+                  options: stops,
+                  onChanged: (val) {
+                    if (val != null) {
+                      setModalState(() {
+                        selectedPickup = val;
+                        errorMsg = null;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 10),
+                // Destination Stop
+                _stopPickerDropdown(
+                  label: 'Destination (Drop-off)',
+                  icon: Icons.location_on_rounded,
+                  iconColor: Colors.redAccent,
+                  value: selectedDrop,
+                  options: stops,
+                  onChanged: (val) {
+                    if (val != null) {
+                      setModalState(() {
+                        selectedDrop = val;
+                        errorMsg = null;
+                      });
+                    }
+                  },
+                ),
+                if (isSameStop) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    '⚠ Boarding point and destination must be different.',
+                    style: TextStyle(
+                      color: Color(0xFFDC2626),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+                if (errorMsg != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    errorMsg!,
+                    style: const TextStyle(
+                      color: Color(0xFFDC2626),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: (isSameStop || isBooking)
+                      ? null
+                      : () async {
+                          setModalState(() {
+                            isBooking = true;
+                            errorMsg = null;
+                          });
+                          try {
+                            final ticket = await _controller.bookBus(
+                              bus,
+                              pickup: selectedPickup,
+                              destination: selectedDrop,
+                            );
+                            if (mounted) {
+                              Navigator.pop(bCtx);
+                              _showTicketDialog(ticket);
+                            }
+                          } catch (e) {
+                            setModalState(() {
+                              isBooking = false;
+                              errorMsg = 'Failed to book seat: $e';
+                            });
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.emerald,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: isBooking
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Confirm Seat & Generate Ticket',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _stopPickerDropdown({
+    required String label,
+    required IconData icon,
+    required Color iconColor,
+    required String value,
+    required List<String> options,
+    required ValueChanged<String?> onChanged,
+  }) {
+    final validValue = options.contains(value) ? value : options.first;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: iconColor, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: validValue,
+                isExpanded: true,
+                icon: const Icon(Icons.keyboard_arrow_down,
+                    color: Color(0xFF9CA3AF), size: 20),
+                items: options.map((s) {
+                  return DropdownMenuItem<String>(
+                    value: s,
+                    child: Text(
+                      s,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF1F2937),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showTicketDialog(Ticket ticket) {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(Icons.check_circle, color: AppColors.emerald, size: 26),
-            SizedBox(width: 10),
-            Text(
-              'Ticket Confirmed',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Row(
+              children: [
+                Icon(
+                  ticket.isConfirmed
+                      ? Icons.verified_rounded
+                      : Icons.check_circle,
+                  color: ticket.isConfirmed
+                      ? const Color(0xFF2563EB)
+                      : AppColors.emerald,
+                  size: 26,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  ticket.isConfirmed ? 'Ticket Boarded' : 'Ticket Confirmed',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: ticket.isConfirmed
+                    ? const Color(0xFFDBEAFE)
+                    : const Color(0xFFDCFCE7),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                ticket.isConfirmed ? 'BOARDED' : 'VALID',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: ticket.isConfirmed
+                      ? const Color(0xFF1D4ED8)
+                      : const Color(0xFF15803D),
+                ),
+              ),
             ),
           ],
         ),
@@ -816,12 +1304,64 @@ class _TransitHomeViewState extends State<TransitHomeView> {
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               'Departure: ${ticket.bus.departureTime} · ${ticket.bus.registrationNumber}',
               style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
+            // Pickup and destination chips
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.circle, color: AppColors.emerald, size: 8),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Pickup: ',
+                        style:
+                            TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      Expanded(
+                        child: Text(
+                          ticket.pickup,
+                          style: const TextStyle(fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 10),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on,
+                          color: Colors.redAccent, size: 10),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Drop: ',
+                        style:
+                            TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      Expanded(
+                        child: Text(
+                          ticket.destination,
+                          style: const TextStyle(fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
             // Live scannable QR Code
             QrCodeWidget(
               data: ticket.id,
@@ -847,12 +1387,16 @@ class _TransitHomeViewState extends State<TransitHomeView> {
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Show this QR code to the driver upon boarding',
+            Text(
+              ticket.isConfirmed
+                  ? '✓ Verified by driver. Welcome aboard!'
+                  : 'Show this QR code to the driver upon boarding to verify.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11,
-                color: Color(0xFF6B7280),
+                color: ticket.isConfirmed
+                    ? const Color(0xFF1D4ED8)
+                    : const Color(0xFF6B7280),
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -908,7 +1452,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
               ),
               const SizedBox(height: 4),
               const Text(
-                'Stored securely in Firebase',
+                'Active & Past Bookings',
                 style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
               ),
               const SizedBox(height: 16),
@@ -945,9 +1489,13 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(
-                                      Icons.confirmation_number_rounded,
-                                      color: AppColors.emerald,
+                                    Icon(
+                                      ticket.isConfirmed
+                                          ? Icons.verified_rounded
+                                          : Icons.confirmation_number_rounded,
+                                      color: ticket.isConfirmed
+                                          ? const Color(0xFF2563EB)
+                                          : AppColors.emerald,
                                       size: 32,
                                     ),
                                     const SizedBox(width: 14),
@@ -956,28 +1504,71 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            ticket.bus.route,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                            ),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  ticket.bus.route,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 6,
+                                                  vertical: 2,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: ticket.isConfirmed
+                                                      ? const Color(0xFFDBEAFE)
+                                                      : const Color(0xFFDCFCE7),
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  ticket.isConfirmed
+                                                      ? 'BOARDED'
+                                                      : 'VALID',
+                                                  style: TextStyle(
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: ticket.isConfirmed
+                                                        ? const Color(0xFF1D4ED8)
+                                                        : const Color(0xFF15803D),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            'Departure: ${ticket.bus.departureTime} · ${ticket.bus.registrationNumber}',
+                                            '${ticket.pickup} ➔ ${ticket.destination}',
                                             style: const TextStyle(
                                               fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                              color: Color(0xFF374151),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Departure: ${ticket.bus.departureTime} · ${ticket.bus.registrationNumber}',
+                                            style: const TextStyle(
+                                              fontSize: 11,
                                               color: Color(0xFF6B7280),
                                             ),
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
                                             'Ticket: ${ticket.id}',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w600,
-                                              color: AppColors.emerald,
+                                              color: ticket.isConfirmed
+                                                  ? const Color(0xFF2563EB)
+                                                  : AppColors.emerald,
                                             ),
                                           ),
                                         ],
@@ -990,7 +1581,8 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                                         vertical: 6,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppColors.emerald.withValues(alpha: 0.1),
+                                        color: AppColors.emerald
+                                            .withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Row(
@@ -1003,7 +1595,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                                           ),
                                           SizedBox(width: 4),
                                           Text(
-                                            'Show QR',
+                                            'QR',
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.bold,
