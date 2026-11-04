@@ -101,59 +101,11 @@ class BusScheduleService {
         batch.set(_busesRef!.doc(entry.key), entry.value);
       }
 
-<<<<<<< HEAD
-      // 3. Insert active trips from this schedule
-      for (final trip in schedule.trips) {
-        if (!trip.isActive) continue;
-
-        final newDoc = _busesRef!.doc();
-        batch.set(newDoc, {
-          'route': trip.title,
-          'departureTime': trip.departureTime,
-          'arrivalTime': trip.arrivalTime,
-          'availableSeats': trip.availableSeats,
-          'totalSeats': trip.totalSeats,
-          'registrationNumber': trip.registrationNumber,
-          'isActive': true,
-          'scheduleDayId': schedule.dayId,
-          'tripNumber': trip.tripNumber,
-          'stopsCount': trip.stops.length,
-          'speed': '52 km/h',
-          'currentStopIndex': 1,
-          'stops': trip.stops
-              .map(
-                (s) => {
-                  'name': s.stopName,
-                  'time': s.time,
-                  'type': s.type,
-                  'subtext': s.type == 'departure'
-                      ? 'Departure Point'
-                      : (s.type == 'arrival'
-                          ? 'Final Destination'
-                          : 'Transit Halt'),
-                },
-              )
-              .toList(),
-          if (trip.note != null) 'note': trip.note,
-        });
-      }
-
-      // Record metadata about the active published schedule
-      if (_scheduleRef != null) {
-        batch.set(_scheduleRef!.doc('active_meta'), {
-          'activeDayId': schedule.dayId,
-          'activeDayTitle': schedule.dayTitle,
-          'publishedAt': FieldValue.serverTimestamp(),
-          'totalActiveTrips': schedule.trips.where((t) => t.isActive).length,
-        });
-      }
-=======
       batch.set(_scheduleRef!.doc('active_meta'), {
         'isWeeklyPublished': true,
         'publishedAt': FieldValue.serverTimestamp(),
         'scheduleDays': schedules.map((item) => item.dayId).toList(),
       }, SetOptions(merge: true));
->>>>>>> c8077c4d6a3e4c49ef7d68c98f2d602843538491
 
       await batch.commit();
     } catch (e) {
