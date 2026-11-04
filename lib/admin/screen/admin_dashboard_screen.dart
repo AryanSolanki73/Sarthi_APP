@@ -82,8 +82,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  void _openBuses() => _openManagementScreen(const BusManagementScreen());
-
   void _openCartLocations() =>
       _openManagementScreen(const CartLocationManagementScreen());
 

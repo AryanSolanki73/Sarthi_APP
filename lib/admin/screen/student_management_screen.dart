@@ -496,7 +496,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: filteredStudents.length,
-                                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                                separatorBuilder: (_, _) => const SizedBox(height: 10),
                                 itemBuilder: (context, index) {
                                   final doc = filteredStudents[index];
                                   final data = doc.data();
@@ -690,7 +690,7 @@ class _StudentAvatar extends StatelessWidget {
           width: size,
           height: size,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _initialsAvatar(),
+          errorBuilder: (_, _, _) => _initialsAvatar(),
         ),
       );
     }
