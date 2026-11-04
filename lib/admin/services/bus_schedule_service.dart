@@ -86,6 +86,22 @@ class BusScheduleService {
           'scheduleDayId': schedule.dayId,
           'tripNumber': trip.tripNumber,
           'stopsCount': trip.stops.length,
+          'speed': '52 km/h',
+          'currentStopIndex': 1,
+          'stops': trip.stops
+              .map(
+                (s) => {
+                  'name': s.stopName,
+                  'time': s.time,
+                  'type': s.type,
+                  'subtext': s.type == 'departure'
+                      ? 'Departure Point'
+                      : (s.type == 'arrival'
+                          ? 'Final Destination'
+                          : 'Transit Halt'),
+                },
+              )
+              .toList(),
           if (trip.note != null) 'note': trip.note,
         });
       }

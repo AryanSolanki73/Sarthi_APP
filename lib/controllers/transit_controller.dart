@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:sarthi_app/admin/models/bus_schedule_model.dart';
+import 'package:sarthi_app/admin/services/bus_schedule_service.dart';
 import 'package:sarthi_app/models/bus.dart';
 import 'package:sarthi_app/models/cart_location.dart';
 import 'package:sarthi_app/models/ride_request.dart';
@@ -9,9 +11,11 @@ import 'package:sarthi_app/services/transit_service.dart';
 /// Controller for student transit actions: EV Cart hailing, live map tracking,
 /// and City Bus ticket booking powered by Firebase.
 class TransitController extends ChangeNotifier {
-  TransitController(this._service);
+  TransitController(this._service, {BusScheduleService? scheduleService})
+      : _busScheduleService = scheduleService ?? BusScheduleService();
 
   final TransitService _service;
+  final BusScheduleService _busScheduleService;
 
   bool isBusTab = false;
   bool isLoading = true;
@@ -22,6 +26,13 @@ class TransitController extends ChangeNotifier {
   List<CartLocation> cartLocations = [];
   List<RideRequest> rides = [];
   List<Ticket> tickets = [];
+
+  // Day Schedule selection
+  String selectedScheduleDayKey = 'today'; // 'today', 'tomorrow', 'monday', etc.
+  DateTime selectedScheduleDate = DateTime.now();
+  DayBusSchedule? currentDaySchedule;
+  List<Bus> dayScheduleBuses = [];
+  bool isLoadingSchedule = false;
 
   StreamSubscription<List<Bus>>? _busesSub;
   StreamSubscription<List<CartLocation>>? _locationsSub;
@@ -37,6 +48,145 @@ class TransitController extends ChangeNotifier {
     return null;
   }
 
+  /// Maps any calendar date to the corresponding IIT Ropar timetable day ID.
+  static String dayIdForDate(DateTime date) {
+    switch (date.weekday) {
+      case DateTime.monday:
+        return 'monday';
+      case DateTime.tuesday:
+      case DateTime.wednesday:
+      case DateTime.thursday:
+        return 'tuesday_thursday';
+      case DateTime.friday:
+        return 'friday';
+      case DateTime.saturday:
+        return 'saturday_holidays';
+      case DateTime.sunday:
+        return 'sunday';
+      default:
+        return 'tuesday_thursday';
+    }
+  }
+
+  /// Formatted date string (e.g., "Wed, Nov 4").
+  String formatShortDate(DateTime d) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return '${weekdays[d.weekday - 1]}, ${d.day} ${months[d.month - 1]}';
+  }
+
+  /// User-friendly label for the selected day filter.
+  String get selectedScheduleDayLabel {
+    if (selectedScheduleDayKey == 'today') {
+      return 'Today · ${formatShortDate(DateTime.now())}';
+    } else if (selectedScheduleDayKey == 'tomorrow') {
+      return 'Tomorrow · ${formatShortDate(DateTime.now().add(const Duration(days: 1)))}';
+    } else if (selectedScheduleDayKey == 'custom') {
+      return formatShortDate(selectedScheduleDate);
+    }
+    return currentDaySchedule?.dayTitle ?? 'Selected Day';
+  }
+
+  /// Checks whether a trip is completed. Completed trips are filtered out from the list.
+  bool isTripCompleted(Bus bus, {DateTime? targetDate}) {
+    if (bus.isCompleted) return true;
+
+    final date = targetDate ?? selectedScheduleDate;
+    final now = DateTime.now();
+
+    // Check if the selected date is in the past:
+    final isPastDay = date.year < now.year ||
+        (date.year == now.year && date.month < now.month) ||
+        (date.year == now.year &&
+            date.month == now.month &&
+            date.day < now.day);
+    if (isPastDay) return true;
+
+    // Check if the selected date is in the future:
+    final isFutureDay = date.year > now.year ||
+        (date.year == now.year && date.month > now.month) ||
+        (date.year == now.year &&
+            date.month == now.month &&
+            date.day > now.day);
+    if (isFutureDay) return false;
+
+    // For TODAY:
+    // 1. If all stops are marked departed:
+    if (bus.stops.isNotEmpty &&
+        bus.currentStopIndex >= bus.stops.length - 1 &&
+        bus.stops.last.isDeparted) {
+      return true;
+    }
+
+    // 2. Check if the trip's arrival / end time has passed:
+    final timeStr = bus.arrivalTime ??
+        (bus.stops.isNotEmpty && bus.stops.last.scheduledTime != null
+            ? bus.stops.last.scheduledTime!
+            : bus.departureTime);
+
+    final currentMins = now.hour * 60 + now.minute;
+    final tripEndMins = Bus.parseMinutesFromTimeString(timeStr);
+
+    if (tripEndMins != null) {
+      if (currentMins > tripEndMins + 10) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /// Returns the active buses to display for the currently chosen day filter,
+  /// with completed trips automatically removed.
+  List<Bus> get activeDisplayedBuses {
+    final List<Bus> sourceList;
+    if (selectedScheduleDayKey == 'today') {
+      sourceList = buses.isNotEmpty ? buses : dayScheduleBuses;
+    } else {
+      sourceList = dayScheduleBuses;
+    }
+
+    return sourceList
+        .where((b) => !isTripCompleted(b, targetDate: selectedScheduleDate))
+        .toList();
+  }
+
+  /// Loads trips for a specific day key ('today', 'tomorrow', 'monday', etc.) or custom date from Firebase.
+  Future<void> selectScheduleDay(String key, {DateTime? date}) async {
+    selectedScheduleDayKey = key;
+    if (date != null) {
+      selectedScheduleDate = date;
+    } else if (key == 'today') {
+      selectedScheduleDate = DateTime.now();
+    } else if (key == 'tomorrow') {
+      selectedScheduleDate = DateTime.now().add(const Duration(days: 1));
+    }
+
+    final dayId = (key == 'today' || key == 'tomorrow' || key == 'custom')
+        ? dayIdForDate(selectedScheduleDate)
+        : key;
+
+    isLoadingSchedule = true;
+    notifyListeners();
+
+    try {
+      currentDaySchedule = await _busScheduleService.getScheduleForDay(dayId);
+      final trips = currentDaySchedule?.trips ?? [];
+      dayScheduleBuses = trips
+          .where((t) => t.isActive)
+          .map((t) => Bus.fromScheduledTrip(t, dayId: dayId))
+          .toList();
+    } catch (e) {
+      debugPrint('Error fetching trips for day $dayId: $e');
+    } finally {
+      isLoadingSchedule = false;
+      notifyListeners();
+    }
+  }
+
   /// Initializes real-time Firebase listeners for routes, rides, and locations.
   Future<void> load() async {
     isLoading = true;
@@ -47,6 +197,10 @@ class TransitController extends ChangeNotifier {
     } catch (_) {}
 
     _subscribeToFirebaseStreams();
+
+    try {
+      await selectScheduleDay('today');
+    } catch (_) {}
 
     // Check periodically for stale carts whose pilot app closed or stopped updating
     _staleCartTimer?.cancel();

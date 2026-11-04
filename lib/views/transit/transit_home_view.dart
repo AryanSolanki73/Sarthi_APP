@@ -6,6 +6,7 @@ import 'package:sarthi_app/models/ride_request.dart';
 import 'package:sarthi_app/models/ticket.dart';
 import 'package:sarthi_app/services/transit_service.dart';
 import 'package:sarthi_app/views/profile_page.dart';
+import 'package:sarthi_app/views/transit/bus_live_tracking_sheet.dart';
 import 'package:sarthi_app/views/transit/campus_map_view.dart';
 import 'package:sarthi_app/views/widgets/qr_code_widget.dart';
 
@@ -669,45 +670,167 @@ class _TransitHomeViewState extends State<TransitHomeView> {
     ),
   );
 
+  Widget _daySelectorBar() {
+    final activeKey = _controller.selectedScheduleDayKey;
+    final isCustom = activeKey == 'custom';
+
+    return Container(
+      height: 38,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _compactDayItem(
+              label: 'Today',
+              isSelected: activeKey == 'today',
+              onTap: () => _controller.selectScheduleDay('today'),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: _compactDayItem(
+              label: 'Tomorrow',
+              isSelected: activeKey == 'tomorrow',
+              onTap: () => _controller.selectScheduleDay('tomorrow'),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: _compactDayItem(
+              label: isCustom
+                  ? _controller.formatShortDate(_controller.selectedScheduleDate)
+                  : 'Date',
+              icon: Icons.calendar_today_rounded,
+              isSelected: isCustom,
+              onTap: _pickCustomDate,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _compactDayItem({
+    required String label,
+    IconData? icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.emerald : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.emerald.withValues(alpha: 0.25),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 13,
+                color: isSelected ? Colors.white : const Color(0xFF64748B),
+              ),
+              const SizedBox(width: 4),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickCustomDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _controller.selectedScheduleDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 7)),
+      lastDate: DateTime.now().add(const Duration(days: 90)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.emerald,
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF1F2937),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      await _controller.selectScheduleDay('custom', date: picked);
+    }
+  }
+
   Widget _busList() {
     final activeTickets = _controller.tickets.where((t) => !t.isConfirmed).toList();
     final latestActiveTicket = activeTickets.isNotEmpty
         ? activeTickets.first
         : (_controller.tickets.isNotEmpty ? _controller.tickets.first : null);
 
-    if (_controller.buses.isEmpty && latestActiveTicket == null) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.directions_bus_outlined,
-              size: 48,
-              color: Color(0xFF9CA3AF),
-            ),
-            SizedBox(height: 12),
-            Text(
-              'No scheduled buses found',
-              style: TextStyle(color: Color(0xFF6B7280), fontSize: 15),
-            ),
-          ],
-        ),
-      );
-    }
+    final displayedBuses = _controller.activeDisplayedBuses;
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         if (latestActiveTicket != null) ...[
           _activeBusTicketBanner(latestActiveTicket),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
         ],
+
+        // 1. Day Selector Bar (Today, Tomorrow, and Date Picker)
+        _daySelectorBar(),
+        const SizedBox(height: 14),
+
+        // 2. Schedule Section Header
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Scheduled Campus Buses',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Trips for ${_controller.selectedScheduleDayLabel}',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${displayedBuses.length} scheduled trips available',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                ),
+              ],
             ),
             if (_controller.tickets.isNotEmpty)
               GestureDetector(
@@ -724,249 +847,427 @@ class _TransitHomeViewState extends State<TransitHomeView> {
           ],
         ),
         const SizedBox(height: 12),
-        for (final bus in _controller.buses) ...[
-          _busCard(bus),
-          const SizedBox(height: 12),
-        ],
+
+        // 3. Loading state / Empty state / Bus cards
+        if (_controller.isLoadingSchedule)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.emerald),
+            ),
+          )
+        else if (displayedBuses.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.directions_bus_outlined,
+                    size: 44,
+                    color: Color(0xFF9CA3AF),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    'No scheduled buses found for this day',
+                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          for (final bus in displayedBuses) ...[
+            _busCard(bus),
+            const SizedBox(height: 12),
+          ],
       ],
     );
   }
 
   Widget _activeBusTicketBanner(Ticket ticket) {
     final isConfirmed = ticket.isConfirmed;
+    final color = isConfirmed ? const Color(0xFF2563EB) : AppColors.emerald;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isConfirmed ? const Color(0xFFEFF6FF) : const Color(0xFFECFDF5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isConfirmed ? const Color(0xFFBFDBFE) : const Color(0xFFA7F3D0),
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showTicketDialog(ticket),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isConfirmed ? const Color(0xFFEFF6FF) : const Color(0xFFECFDF5),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isConfirmed ? const Color(0xFFBFDBFE) : const Color(0xFFA7F3D0),
+            ),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Icon(
-                    isConfirmed ? Icons.verified_rounded : Icons.qr_code_2_rounded,
-                    color: isConfirmed ? const Color(0xFF2563EB) : AppColors.emerald,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    isConfirmed ? 'Boarding Confirmed' : 'Active Bus Ticket',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: isConfirmed ? const Color(0xFF1E40AF) : const Color(0xFF065F46),
-                    ),
-                  ),
-                ],
-              ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: isConfirmed ? const Color(0xFFDBEAFE) : const Color(0xFFDCFCE7),
-                  borderRadius: BorderRadius.circular(6),
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  isConfirmed ? 'BOARDED' : 'VALID PASS',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: isConfirmed ? const Color(0xFF1D4ED8) : const Color(0xFF15803D),
-                  ),
+                child: Icon(
+                  isConfirmed ? Icons.verified_rounded : Icons.qr_code_rounded,
+                  color: color,
+                  size: 18,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            ticket.bus.route,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(Icons.pin_drop_outlined, size: 14, color: Color(0xFF6B7280)),
-              const SizedBox(width: 4),
+              const SizedBox(width: 10),
               Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            ticket.bus.route,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1F2937),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            ticket.bus.departureTime,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: color,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${ticket.pickup} ➔ ${ticket.destination} · Pass: ${ticket.id}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF6B7280),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 child: Text(
-                  '${ticket.pickup} ➔ ${ticket.destination}',
+                  isConfirmed ? 'Receipt' : 'Show QR',
                   style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF4B5563),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Departure: ${ticket.bus.departureTime} · Bus: ${ticket.bus.registrationNumber}',
-            style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _showTicketDialog(ticket),
-              icon: Icon(
-                isConfirmed ? Icons.visibility_outlined : Icons.qr_code_rounded,
-                size: 16,
-                color: Colors.white,
-              ),
-              label: Text(
-                isConfirmed ? 'View Boarding Receipt' : 'Show QR Ticket to Driver',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isConfirmed ? const Color(0xFF2563EB) : AppColors.emerald,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _busCard(Bus bus) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFFE5E7EB)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x08000000),
-          blurRadius: 8,
-          offset: Offset(0, 2),
-        ),
-      ],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFECFDF5),
-                borderRadius: BorderRadius.circular(8),
+  Widget _busCard(Bus bus) {
+    final int onboarded = bus.onboardedPassengers;
+    final int capacity = bus.totalSeats;
+    final double occupancy = bus.occupancyRate;
+    final Color occupancyColor = bus.isFull
+        ? Colors.redAccent
+        : (occupancy >= 0.8 ? const Color(0xFFF59E0B) : AppColors.emerald);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openBusLiveTrackingModal(bus),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x08000000),
+                blurRadius: 8,
+                offset: Offset(0, 2),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top line: Departure time, Live Speed badge, Registration number
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Icon(
-                    Icons.schedule,
-                    size: 14,
-                    color: AppColors.emerald,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.schedule,
+                              size: 14,
+                              color: AppColors.emerald,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              bus.departureTime,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF065F46),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0F2FE),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF0284C7),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              bus.speed,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0284C7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 4),
                   Text(
-                    bus.departureTime,
+                    bus.registrationNumber,
                     style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF065F46),
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6B7280),
                     ),
                   ),
                 ],
               ),
-            ),
-            Text(
-              bus.registrationNumber,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF6B7280),
+              const SizedBox(height: 10),
+
+              // Route name as title
+              Text(
+                bus.route,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Text(
-          bus.route,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 14),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.event_seat_rounded,
-                  size: 18,
-                  color: bus.isFull ? Colors.redAccent : AppColors.emerald,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  bus.isFull
-                      ? 'Full (0 Seats)'
-                      : '${bus.availableSeats} of ${bus.totalSeats} seats available',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: bus.isFull
-                        ? Colors.redAccent
-                        : const Color(0xFF374151),
-                  ),
-                ),
-              ],
-            ),
-            ElevatedButton(
-              onPressed: bus.isFull
-                  ? null
-                  : () => _openBookSeatModal(bus),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.emerald,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                shape: RoundedRectangleBorder(
+              const SizedBox(height: 12),
+
+              // Onboarded passenger capacity & occupancy progress bar
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFF1F5F9)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.groups_rounded,
+                              size: 15,
+                              color: Color(0xFF64748B),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Onboarded: $onboarded / $capacity passengers',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF334155),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '${(occupancy * 100).round()}% Full',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: occupancyColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: occupancy,
+                        minHeight: 6,
+                        backgroundColor: const Color(0xFFE2E8F0),
+                        valueColor: AlwaysStoppedAnimation<Color>(occupancyColor),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: const Text(
-                'Book Seat',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              const SizedBox(height: 12),
+
+              // Bottom row: Seats available + Live Route button & Book Seat button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.event_seat_rounded,
+                        size: 16,
+                        color: bus.isFull ? Colors.redAccent : AppColors.emerald,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        bus.isFull
+                            ? 'Full (0 Seats)'
+                            : '${bus.availableSeats} seats left',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: bus.isFull
+                              ? Colors.redAccent
+                              : const Color(0xFF374151),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => _openBusLiveTrackingModal(bus),
+                        icon: const Icon(
+                          Icons.route_rounded,
+                          size: 15,
+                          color: Color(0xFF0284C7),
+                        ),
+                        label: const Text(
+                          'Live Route',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0284C7),
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      ElevatedButton(
+                        onPressed: bus.isFull
+                            ? null
+                            : () => _openBookSeatModal(bus),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.emerald,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          'Book Seat',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
+
+  void _openBusLiveTrackingModal(Bus bus) {
+    BusLiveTrackingSheet.show(
+      context,
+      bus: bus,
+      onBookSeat: () => _openBookSeatModal(bus),
+    );
+  }
 
   void _openBookSeatModal(Bus bus) {
     final stops = bus.availableStops;
@@ -1154,7 +1455,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                               pickup: selectedPickup,
                               destination: selectedDrop,
                             );
-                            if (mounted) {
+                            if (mounted && bCtx.mounted) {
                               Navigator.pop(bCtx);
                               _showTicketDialog(ticket);
                             }

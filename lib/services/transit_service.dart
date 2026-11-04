@@ -177,6 +177,12 @@ class FirebaseTransitService implements TransitService {
         totalSeats: bus.totalSeats,
         registrationNumber: bus.registrationNumber,
         stops: bus.stops,
+        busType: bus.busType,
+        speed: bus.speed,
+        currentLocation: bus.currentLocation,
+        currentStopIndex: bus.currentStopIndex,
+        gpsAccuracy: bus.gpsAccuracy,
+        lastUpdated: bus.lastUpdated,
       );
 
       final ticket = Ticket(
@@ -211,84 +217,281 @@ class FirebaseTransitService implements TransitService {
     });
   }
 
-  /// Auto-populates Firestore with default routes & cart locations if empty.
+  /// Initial bus routes dataset with structured stop details and timings.
+  static final List<Map<String, dynamic>> _defaultBusesWithStops = [
+    {
+      'route': 'Main Campus → Rupnagar Railway Station',
+      'busType': 'Campus Morning Express',
+      'departureTime': '05:05 AM',
+      'availableSeats': 12,
+      'totalSeats': 35,
+      'registrationNumber': 'PB-12-Bus-01',
+      'speed': '50 km/h',
+      'currentStopIndex': 1,
+      'isActive': true,
+      'stops': [
+        {
+          'name': 'Main Gate (Main Campus)',
+          'time': '05:05 AM',
+          'subtext': 'Bay 1 Departure',
+          'status': 'Departed',
+        },
+        {
+          'name': 'Bara Pind Junction',
+          'time': '05:20 AM',
+          'subtext': 'Highway Halt',
+          'status': 'Departed',
+        },
+        {
+          'name': 'Old Bus Stand, Rupnagar',
+          'time': '05:35 AM',
+          'subtext': 'City Stand',
+          'status': '+4m Late',
+        },
+        {
+          'name': 'Rupnagar Railway Station',
+          'time': '05:50 AM',
+          'subtext': 'Station Porch',
+          'status': 'ETA 05:50',
+        },
+      ],
+    },
+    {
+      'route': 'Main Campus → Rupnagar City Centre',
+      'busType': 'Campus AC Coach (2+2)',
+      'departureTime': '02:30 PM',
+      'availableSeats': 14,
+      'totalSeats': 32,
+      'registrationNumber': 'PB-12-A-4019',
+      'speed': '52 km/h',
+      'currentStopIndex': 2,
+      'isActive': true,
+      'stops': [
+        {
+          'name': 'Main Campus (Main Gate)',
+          'time': '02:30 PM',
+          'subtext': 'Bay 1 Departure',
+          'status': 'Departed',
+        },
+        {
+          'name': 'Satluj Hostel Turn',
+          'time': '02:38 PM',
+          'subtext': 'Hostel Gate Junction',
+          'status': 'Departed',
+        },
+        {
+          'name': 'Bara Pind Junction',
+          'time': '02:50 PM',
+          'subtext': 'Highway Exit · Stop: 5 mins',
+          'status': '+5m Late',
+        },
+        {
+          'name': 'Rupnagar Old Bus Stand',
+          'time': '03:05 PM',
+          'subtext': 'City Counter',
+          'status': 'On Time',
+        },
+        {
+          'name': 'Rupnagar City Centre',
+          'time': '03:20 PM',
+          'subtext': 'Final Destination',
+          'status': 'ETA 03:20',
+        },
+      ],
+    },
+    {
+      'route': 'Main Campus → Morinda Railway Station',
+      'busType': 'Campus AC Coach (2+2)',
+      'departureTime': '04:15 PM',
+      'availableSeats': 6,
+      'totalSeats': 32,
+      'registrationNumber': 'PB-12-B-8821',
+      'speed': '56 km/h',
+      'currentStopIndex': 2,
+      'isActive': true,
+      'stops': [
+        {
+          'name': 'Main Campus (Main Gate)',
+          'time': '04:15 PM',
+          'subtext': 'Bay 2 Departure',
+          'status': 'Departed',
+        },
+        {
+          'name': 'Utility Block Exit',
+          'time': '04:22 PM',
+          'subtext': 'Campus Exit Gate',
+          'status': 'Departed',
+        },
+        {
+          'name': 'Ropar Bypass Flyover',
+          'time': '04:35 PM',
+          'subtext': 'Service Lane Halt',
+          'status': 'On Time',
+        },
+        {
+          'name': 'Chamkaur Sahib',
+          'time': '04:55 PM',
+          'subtext': 'Bus Shelter',
+          'status': 'On Time',
+        },
+        {
+          'name': 'Morinda Railway Station',
+          'time': '05:15 PM',
+          'subtext': 'Station Platform 1',
+          'status': 'ETA 05:15',
+        },
+      ],
+    },
+    {
+      'route': 'Main Campus → Chandigarh ISBT (Sector 43)',
+      'busType': 'Intercity AC Express (2+2)',
+      'departureTime': '06:00 PM',
+      'availableSeats': 8,
+      'totalSeats': 45,
+      'registrationNumber': 'PB-12-C-1092',
+      'speed': '62 km/h',
+      'currentStopIndex': 2,
+      'isActive': true,
+      'stops': [
+        {
+          'name': 'Main Campus (Main Gate)',
+          'time': '06:00 PM',
+          'subtext': 'Main Gate Departure',
+          'status': 'Departed',
+        },
+        {
+          'name': 'Kurali Bus Stop',
+          'time': '06:25 PM',
+          'subtext': 'Main Highway Stop',
+          'status': 'Departed',
+        },
+        {
+          'name': 'Kharar Junction',
+          'time': '06:45 PM',
+          'subtext': 'Flyover Entry',
+          'status': '+8m Late',
+        },
+        {
+          'name': 'Mohali Phase 7',
+          'time': '07:10 PM',
+          'subtext': 'Traffic Junction',
+          'status': 'On Time',
+        },
+        {
+          'name': 'Chandigarh ISBT (Sector 43)',
+          'time': '07:35 PM',
+          'subtext': 'Counter Bay 12',
+          'status': 'ETA 07:35',
+        },
+      ],
+    },
+    {
+      'route': 'Hostel Sector → Academic Block Shuttle',
+      'busType': 'Campus Electric Shuttle (2+2)',
+      'departureTime': 'Every 15 mins',
+      'availableSeats': 18,
+      'totalSeats': 20,
+      'registrationNumber': 'PB-12-EV-01',
+      'speed': '25 km/h',
+      'currentStopIndex': 3,
+      'isActive': true,
+      'stops': [
+        {
+          'name': 'Satluj Hostel',
+          'time': '10:00 AM',
+          'subtext': 'Hostel Circle',
+          'status': 'Departed',
+        },
+        {
+          'name': 'Beas Hostel',
+          'time': '10:03 AM',
+          'subtext': 'North Wing Entry',
+          'status': 'Departed',
+        },
+        {
+          'name': 'Chenab Hostel',
+          'time': '10:06 AM',
+          'subtext': 'Mess Complex',
+          'status': 'Departed',
+        },
+        {
+          'name': 'Brahmaputra Boys Hostel',
+          'time': '10:09 AM',
+          'subtext': 'Main Drop Point',
+          'status': 'On Time',
+        },
+        {
+          'name': 'Nalanda Library',
+          'time': '10:13 AM',
+          'subtext': 'Central Lawn Exit',
+          'status': 'On Time',
+        },
+        {
+          'name': 'J.C. Bose Block',
+          'time': '10:17 AM',
+          'subtext': 'Academic Concourse',
+          'status': 'On Time',
+        },
+        {
+          'name': 'Super Academic Building',
+          'time': '10:20 AM',
+          'subtext': 'Auditorium Gate',
+          'status': 'ETA 10:20',
+        },
+      ],
+    },
+  ];
+
+  /// Auto-populates or updates Firestore with default routes & structured stops.
   @override
   Future<void> seedInitialDataIfEmpty() async {
     try {
-      // 1. Seed scheduled buses / routes
-      final busesSnap = await _busesRef.limit(1).get();
+      final busesSnap = await _busesRef.get();
       if (busesSnap.docs.isEmpty) {
-        final initialBuses = [
-          {
-            'route': 'Main Campus → Rupnagar City Centre',
-            'departureTime': '02:30 PM',
-            'availableSeats': 14,
-            'totalSeats': 32,
-            'registrationNumber': 'PB-12-A-4019',
-            'isActive': true,
-            'stops': [
-              'Main Campus (Main Gate)',
-              'Satluj Hostel Turn',
-              'Bara Pind Junction',
-              'Rupnagar Old Bus Stand',
-              'Rupnagar City Centre',
-            ],
-          },
-          {
-            'route': 'Main Campus → Morinda Railway Station',
-            'departureTime': '04:15 PM',
-            'availableSeats': 6,
-            'totalSeats': 32,
-            'registrationNumber': 'PB-12-B-8821',
-            'isActive': true,
-            'stops': [
-              'Main Campus (Main Gate)',
-              'Utility Block Exit',
-              'Ropar Bypass',
-              'Chamkaur Sahib',
-              'Morinda Railway Station',
-            ],
-          },
-          {
-            'route': 'Main Campus → Chandigarh ISBT (Sector 43)',
-            'departureTime': '06:00 PM',
-            'availableSeats': 8,
-            'totalSeats': 45,
-            'registrationNumber': 'PB-12-C-1092',
-            'isActive': true,
-            'stops': [
-              'Main Campus (Main Gate)',
-              'Kurali Bus Stop',
-              'Kharar Junction',
-              'Mohali Phase 7',
-              'Chandigarh ISBT (Sector 43)',
-            ],
-          },
-          {
-            'route': 'Hostel Sector → Academic Block Shuttle',
-            'departureTime': 'Every 15 mins',
-            'availableSeats': 18,
-            'totalSeats': 20,
-            'registrationNumber': 'PB-12-EV-01',
-            'isActive': true,
-            'stops': [
-              'Satluj Hostel',
-              'Beas Hostel',
-              'Chenab Hostel',
-              'Brahmaputra Boys Hostel',
-              'Nalanda Library',
-              'J.C. Bose Block',
-              'Super Academic Building',
-            ],
-          },
-        ];
-
-        for (final busData in initialBuses) {
+        for (final busData in _defaultBusesWithStops) {
           await _busesRef.add(busData);
+        }
+      } else {
+        // Ensure all existing documents in Firestore have rich stops and metadata populated
+        for (final doc in busesSnap.docs) {
+          final data = doc.data();
+
+          // Sanitize any deprecated GreenLine names from older test sessions
+          final rawBusType = (data['busType'] ?? '').toString().toLowerCase();
+          final rawRoute = (data['route'] ?? '').toString().toLowerCase();
+          if (rawBusType.contains('greenline') || rawRoute.contains('madiwala')) {
+            await doc.reference.update({
+              'route': 'Main Campus → Rupnagar Railway Station',
+              'busType': 'Campus Morning Express',
+            });
+          }
+
+          final rawStops = data['stops'] as List<dynamic>?;
+          final bool needsStopsUpdate = rawStops == null ||
+              rawStops.isEmpty ||
+              rawStops.first is String;
+
+          if (needsStopsUpdate) {
+            final routeName = (data['route'] as String? ?? '').toLowerCase();
+            final matchingDefault = _defaultBusesWithStops.firstWhere(
+              (b) => (b['route'] as String).toLowerCase() == routeName,
+              orElse: () => <String, dynamic>{},
+            );
+
+            if (matchingDefault.isNotEmpty && matchingDefault['stops'] != null) {
+              await doc.reference.update({
+                'stops': matchingDefault['stops'],
+                'currentStopIndex': matchingDefault['currentStopIndex'] ?? 2,
+                'speed': data['speed'] ?? matchingDefault['speed'] ?? '58 km/h',
+                if (matchingDefault['busType'] != null && data['busType'] == null)
+                  'busType': matchingDefault['busType'],
+              });
+            }
+          }
         }
       }
     } catch (e) {
-      // Non-blocking in case of offline launch
+      debugPrint('seedInitialData error: $e');
     }
   }
 }
