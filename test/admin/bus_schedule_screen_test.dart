@@ -108,7 +108,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final publishBtn = find.text('Set Active for Today');
+      final publishBtn = find.text('Publish Weekly Schedule');
       expect(publishBtn, findsOneWidget);
 
       await tester.tap(publishBtn);
@@ -116,7 +116,7 @@ void main() {
 
       expect(mockService.publishCalled, isTrue);
       expect(mockService.lastPublishedSchedule?.dayId, 'monday');
-      expect(find.textContaining('schedule published successfully'), findsOneWidget);
+      expect(find.textContaining('Weekly schedule published'), findsOneWidget);
     });
 
     testWidgets('Filters trips by search query', (tester) async {

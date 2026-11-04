@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../auth/admin_auth_service.dart';
 import 'bus_schedule_screen.dart';
+import 'driver_management_screen.dart';
 import 'student_management_screen.dart';
 import 'transit_management_screens.dart';
 
@@ -60,6 +61,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
       ),
       _safeCount(_firestore.collection('locations')),
+      _safeCount(_firestore.collection('drivers')),
     ]);
 
     return _DashboardMetrics(
@@ -67,6 +69,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       activeBuses: counts[1],
       activeRides: counts[2],
       locationRecords: counts[3],
+      drivers: counts[4],
     );
   }
 
@@ -88,6 +91,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   void _openRides() => _openManagementScreen(const RideManagementScreen());
 
   void _openTickets() => _openManagementScreen(const TicketManagementScreen());
+
+  void _openDrivers() => _openManagementScreen(const DriverManagementScreen());
 
   void _openManagementScreen(Widget screen) {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
@@ -141,6 +146,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         Navigator.of(context).pop();
                         _openTickets();
                       },
+                      onOpenDrivers: () {
+                        Navigator.of(context).pop();
+                        _openDrivers();
+                      },
                       isDrawer: true,
                       onClose: () => Navigator.of(context).pop(),
                       onSignOut: () {
@@ -160,6 +169,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   onOpenCartLocations: _openCartLocations,
                   onOpenRides: _openRides,
                   onOpenTickets: _openTickets,
+                  onOpenDrivers: _openDrivers,
                 ),
               Expanded(
                 child: Column(
@@ -191,6 +201,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               onOpenCartLocations: _openCartLocations,
                               onOpenRides: _openRides,
                               onOpenTickets: _openTickets,
+                              onOpenDrivers: _openDrivers,
                             ),
                           ),
                         ),
@@ -213,12 +224,14 @@ class _DashboardMetrics {
     required this.activeBuses,
     required this.activeRides,
     required this.locationRecords,
+    this.drivers,
   });
 
   final int? students;
   final int? activeBuses;
   final int? activeRides;
   final int? locationRecords;
+  final int? drivers;
 }
 
 class _DashboardSidebar extends StatelessWidget {
@@ -229,6 +242,7 @@ class _DashboardSidebar extends StatelessWidget {
     required this.onOpenCartLocations,
     required this.onOpenRides,
     required this.onOpenTickets,
+    required this.onOpenDrivers,
     this.isDrawer = false,
     this.onClose,
     this.onSignOut,
@@ -240,6 +254,7 @@ class _DashboardSidebar extends StatelessWidget {
   final VoidCallback onOpenCartLocations;
   final VoidCallback onOpenRides;
   final VoidCallback onOpenTickets;
+  final VoidCallback onOpenDrivers;
   final bool isDrawer;
   final VoidCallback? onClose;
   final VoidCallback? onSignOut;
@@ -362,10 +377,13 @@ class _DashboardSidebar extends StatelessWidget {
                       label: 'Tickets',
                       onTap: onOpenTickets,
                     ),
-                    const _SidebarItem(
+                    _SidebarItem(
                       icon: Icons.badge_outlined,
                       label: 'Drivers',
-                      unavailable: true,
+                      onTap: () {
+                        if (isDrawer && onClose != null) onClose!();
+                        onOpenDrivers();
+                      },
                     ),
                     const Spacer(),
                     const SizedBox(height: 20),
@@ -452,19 +470,17 @@ class _SidebarItem extends StatelessWidget {
     required this.icon,
     required this.label,
     this.selected = false,
-    this.unavailable = false,
     this.onTap,
   });
 
   final IconData icon;
   final String label;
   final bool selected;
-  final bool unavailable;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? _green : (unavailable ? _muted : _ink);
+    final color = selected ? _green : _ink;
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Material(
@@ -489,11 +505,6 @@ class _SidebarItem extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (unavailable)
-                  const Text(
-                    'Soon',
-                    style: TextStyle(color: _muted, fontSize: 9),
-                  ),
               ],
             ),
           ),
@@ -583,6 +594,7 @@ class _DashboardContent extends StatelessWidget {
     required this.onOpenCartLocations,
     required this.onOpenRides,
     required this.onOpenTickets,
+    required this.onOpenDrivers,
   });
 
   final String adminEmail;
@@ -593,6 +605,7 @@ class _DashboardContent extends StatelessWidget {
   final VoidCallback onOpenCartLocations;
   final VoidCallback onOpenRides;
   final VoidCallback onOpenTickets;
+  final VoidCallback onOpenDrivers;
 
   @override
   Widget build(BuildContext context) {
@@ -681,6 +694,14 @@ class _DashboardContent extends StatelessWidget {
                   tint: const Color(0xFFF2EDFF),
                   iconColor: const Color(0xFF7C57BD),
                 ),
+                _MetricValue(
+                  label: 'Transit drivers',
+                  value: data?.drivers,
+                  hint: 'registered drivers',
+                  icon: Icons.badge_outlined,
+                  tint: const Color(0xFFE7F6EF),
+                  iconColor: const Color(0xFF087F5B),
+                ),
               ],
             );
           },
@@ -694,6 +715,7 @@ class _DashboardContent extends StatelessWidget {
           onOpenCartLocations: onOpenCartLocations,
           onOpenRides: onOpenRides,
           onOpenTickets: onOpenTickets,
+          onOpenDrivers: onOpenDrivers,
         ),
       ],
     );
@@ -1152,6 +1174,7 @@ class _ManagementSection extends StatelessWidget {
     required this.onOpenCartLocations,
     required this.onOpenRides,
     required this.onOpenTickets,
+    required this.onOpenDrivers,
   });
 
   final VoidCallback onOpenStudents;
@@ -1159,6 +1182,7 @@ class _ManagementSection extends StatelessWidget {
   final VoidCallback onOpenCartLocations;
   final VoidCallback onOpenRides;
   final VoidCallback onOpenTickets;
+  final VoidCallback onOpenDrivers;
 
   @override
   Widget build(BuildContext context) {
@@ -1184,10 +1208,12 @@ class _ManagementSection extends StatelessWidget {
         available: true,
         onTap: onOpenBusSchedules,
       ),
-      const _ManagementItem(
+      _ManagementItem(
         title: 'Drivers',
-        subtitle: 'Driver management is not available yet',
+        subtitle: 'Add, view, and manage transit drivers',
         icon: Icons.badge_outlined,
+        available: true,
+        onTap: onOpenDrivers,
       ),
       _ManagementItem(
         title: 'Rides & Bookings',
