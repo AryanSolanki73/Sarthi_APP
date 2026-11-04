@@ -60,10 +60,15 @@ class BusRouteStop {
           .trim();
       final time = (map['time'] ?? map['departureTime'] ?? map['scheduledTime'])
           ?.toString();
-      final subtext =
-          (map['subtext'] ?? map['note'] ?? map['description'])?.toString();
-      final status = (map['status'] ?? map['statusText'])?.toString();
       final type = (map['type'] ?? map['stopType'])?.toString();
+      String? subtext =
+          (map['subtext'] ?? map['note'] ?? map['description'])?.toString();
+      if (subtext == null || subtext.isEmpty) {
+        subtext = (type == 'departure'
+            ? 'Departure Point'
+            : (type == 'arrival' ? 'Final Destination' : 'Transit Halt'));
+      }
+      final status = (map['status'] ?? map['statusText'])?.toString();
 
       return BusRouteStop(
         name: name,
@@ -112,6 +117,7 @@ class Bus {
     this.lastUpdated = '10s ago',
     this.arrivalTime,
     this.isCompleted = false,
+    this.scheduleDayId,
   });
 
   final String id;
@@ -130,6 +136,7 @@ class Bus {
   final String lastUpdated;
   final String? arrivalTime;
   final bool isCompleted;
+  final String? scheduleDayId;
 
   bool get isFull => availableSeats <= 0;
 
@@ -143,6 +150,29 @@ class Bus {
 
   /// Bus service name: strictly uses the route name without hardcoded prefixes.
   String get displayName => route;
+
+  /// Checks whether this trip has started (departed and actively running).
+  /// If [targetDate] is provided, future dates or past dates are considered not actively running.
+  bool isTripStarted({DateTime? targetDate}) {
+    if (isCompleted) return false;
+
+    final date = targetDate ?? DateTime.now();
+    final now = DateTime.now();
+
+    final isSameDay = date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
+
+    if (!isSameDay) {
+      return false;
+    }
+
+    final depMins = parseMinutesFromTimeString(departureTime);
+    if (depMins == null) return false;
+
+    final nowMins = now.hour * 60 + now.minute;
+    return nowMins >= depMins;
+  }
 
   /// Factory converting an official IIT Ropar timetable [ScheduledTrip] into a [Bus].
   static Bus fromScheduledTrip(
@@ -161,7 +191,7 @@ class Bus {
     }).toList();
 
     return Bus(
-      id: '${dayId}_${trip.tripNumber}_${trip.id}',
+      id: 'schedule_${dayId}_${trip.id}',
       route: trip.title,
       departureTime: trip.departureTime,
       arrivalTime: trip.arrivalTime,
@@ -175,12 +205,17 @@ class Bus {
       busType: trip.title,
       speed: '48 km/h',
       currentStopIndex: 1,
+      scheduleDayId: dayId,
     );
   }
 
   /// Live checkpoint description for the in-transit bus callout badge,
   /// derived strictly based on the route stops from Firebase.
   String get activeLocationNotice {
+    if (!isTripStarted()) {
+      return 'Departs at $departureTime • Scheduled';
+    }
+
     final validStops = routeStops;
     if (validStops.isEmpty) {
       return currentLocation ?? 'En route';
@@ -397,7 +432,7 @@ class Bus {
 
   factory Bus.fromDoc(DocumentSnapshot doc) {
     final map = doc.data() as Map<String, dynamic>? ?? {};
-    final rawStops = map['stops'] as List<dynamic>?;
+    final rawStops = (map['scheduledStops'] ?? map['stops']) as List<dynamic>?;
     final List<BusRouteStop> parsedStops = [];
 
     if (rawStops != null) {
@@ -455,6 +490,7 @@ class Bus {
       gpsAccuracy: map['gpsAccuracy'] as String? ?? 'Accurate to 5m',
       lastUpdated: map['lastUpdated'] as String? ?? '10s ago',
       isCompleted: isCompletedFlag,
+      scheduleDayId: map['scheduleDayId'] as String?,
     );
   }
 
@@ -469,6 +505,7 @@ class Bus {
     'stops': stops.isNotEmpty
         ? stops.map((s) => s.toMap()).toList()
         : availableStops,
+    'scheduledStops': stops.map((s) => s.toMap()).toList(),
     'busType': busType,
     'speed': speed,
     'currentLocation': currentLocation,
@@ -476,5 +513,6 @@ class Bus {
     'gpsAccuracy': gpsAccuracy,
     'lastUpdated': lastUpdated,
     'isCompleted': isCompleted,
+    if (scheduleDayId != null) 'scheduleDayId': scheduleDayId,
   };
 }

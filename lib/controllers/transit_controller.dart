@@ -139,15 +139,32 @@ class TransitController extends ChangeNotifier {
     return false;
   }
 
+  /// Checks whether a trip has started on the selected day.
+  bool isTripStarted(Bus bus, {DateTime? targetDate}) {
+    if (isTripCompleted(bus, targetDate: targetDate)) return false;
+    return bus.isTripStarted(targetDate: targetDate ?? selectedScheduleDate);
+  }
+
   /// Returns the active buses to display for the currently chosen day filter,
   /// with completed trips automatically removed.
   List<Bus> get activeDisplayedBuses {
-    final List<Bus> sourceList;
-    if (selectedScheduleDayKey == 'today') {
-      sourceList = buses.isNotEmpty ? buses : dayScheduleBuses;
-    } else {
-      sourceList = dayScheduleBuses;
-    }
+    final dayId = (selectedScheduleDayKey == 'today' ||
+            selectedScheduleDayKey == 'tomorrow' ||
+            selectedScheduleDayKey == 'custom')
+        ? dayIdForDate(selectedScheduleDate)
+        : selectedScheduleDayKey;
+
+    // Filter live buses from Firestore for this specific schedule day:
+    final liveBusesForDay = buses.where((b) {
+      if (b.scheduleDayId != null && b.scheduleDayId!.isNotEmpty) {
+        return b.scheduleDayId == dayId;
+      }
+      return selectedScheduleDayKey == 'today';
+    }).toList();
+
+    // Prefer live Firestore buses if available; otherwise use scheduled timetable buses:
+    final List<Bus> sourceList =
+        liveBusesForDay.isNotEmpty ? liveBusesForDay : dayScheduleBuses;
 
     return sourceList
         .where((b) => !isTripCompleted(b, targetDate: selectedScheduleDate))

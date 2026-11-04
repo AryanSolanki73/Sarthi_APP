@@ -84,9 +84,9 @@ class BusLiveTrackingSheet extends StatelessWidget {
     final double occupancy = bus.occupancyRate;
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.85,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
+      initialChildSize: 0.75,
+      minChildSize: 0.45,
+      maxChildSize: 0.92,
       builder: (ctx, scrollController) {
         return Container(
           decoration: const BoxDecoration(
@@ -104,8 +104,8 @@ class BusLiveTrackingSheet extends StatelessWidget {
             children: [
               // 1. Sheet Drag Handle
               Container(
-                margin: const EdgeInsets.only(top: 10, bottom: 8),
-                width: 42,
+                margin: const EdgeInsets.only(top: 10, bottom: 6),
+                width: 38,
                 height: 4,
                 decoration: BoxDecoration(
                   color: const Color(0xFFCBD5E1),
@@ -113,18 +113,18 @@ class BusLiveTrackingSheet extends StatelessWidget {
                 ),
               ),
 
-              // 2. Dark GPS Live Top Bar
+              // 2. Compact Dark GPS Live Ribbon
               _buildGpsTopBar(),
 
               // 3. Scrollable Content Area
               Expanded(
                 child: ListView(
                   controller: scrollController,
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
                   children: [
                     // Bus Name & Speed Badge
                     _buildBusHeader(),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 12),
 
                     // Passenger Capacity & Onboarded Status
                     _buildCapacityCard(
@@ -133,7 +133,7 @@ class BusLiveTrackingSheet extends StatelessWidget {
                       available: available,
                       occupancy: occupancy,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 14),
 
                     // Section Title: Active Route
                     Row(
@@ -142,7 +142,7 @@ class BusLiveTrackingSheet extends StatelessWidget {
                         const Text(
                           'Active Route & Live Status',
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF0F172A),
                           ),
@@ -167,11 +167,11 @@ class BusLiveTrackingSheet extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 10),
 
-                    // Active Route Timeline matching user reference image
+                    // Active Route Timeline
                     _buildRouteTimeline(stops),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
                     // Action Button: Book Seat
                     SizedBox(
@@ -183,22 +183,22 @@ class BusLiveTrackingSheet extends StatelessWidget {
                                 Navigator.pop(context);
                                 onBookSeat?.call();
                               },
-                        icon: const Icon(Icons.event_seat_rounded, size: 18),
+                        icon: const Icon(Icons.event_seat_rounded, size: 16),
                         label: Text(
                           bus.isFull
-                              ? 'Bus is Fully Booked'
-                              : 'Book Seat on this Bus ($available Available)',
+                              ? 'Bus Fully Booked'
+                              : 'Book Seat ($available Available)',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                            fontSize: 14,
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.emerald,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           elevation: 0,
                         ),
@@ -214,40 +214,35 @@ class BusLiveTrackingSheet extends StatelessWidget {
     );
   }
 
-  /// Dark status header bar ("🟢 GPS • Accurate to 5m" and "Updated 10s ago")
+  /// Compact status ribbon ("🟢 GPS • Accurate to 5m" and "Updated 10s ago")
   Widget _buildGpsTopBar() {
     return Container(
-      width: double.infinity,
-      color: AppColors.emerald, // Dark slate / navy matching image
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A), // Modern dark slate
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
               Container(
-                width: 8,
-                height: 8,
+                width: 7,
+                height: 7,
                 decoration: const BoxDecoration(
                   color: Color(0xFF22C55E), // Bright GPS active green
                   shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color.fromARGB(102, 11, 55, 11),
-                      blurRadius: 4,
-                      spreadRadius: 1,
-                    ),
-                  ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(
                 'GPS • ${bus.gpsAccuracy}',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.2,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -256,7 +251,7 @@ class BusLiveTrackingSheet extends StatelessWidget {
             'Updated ${bus.lastUpdated}',
             style: const TextStyle(
               color: Color(0xFF94A3B8),
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: FontWeight.w400,
             ),
           ),
@@ -267,270 +262,218 @@ class BusLiveTrackingSheet extends StatelessWidget {
 
   /// Bus Title, Route subtitle, and Speed Pill Badge
   Widget _buildBusHeader() {
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                bus.route,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
                 children: [
-                  Text(
-                    bus.route,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
-                      letterSpacing: -0.3,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      bus.departureTime,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF065F46),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  if (bus.arrivalTime != null &&
+                      bus.arrivalTime!.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      '→ ${bus.arrivalTime}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 8),
                   Text(
-                    'Departure: ${bus.departureTime} · ${bus.registrationNumber}',
+                    bus.registrationNumber,
                     style: const TextStyle(
-                      fontSize: 13,
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF64748B),
+                      color: Color(0xFF94A3B8),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE0F2FE), // Soft light-blue
-                borderRadius: BorderRadius.circular(8),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Builder(
+          builder: (_) {
+            final isStarted = bus.isTripStarted();
+            if (isStarted) {
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0F2FE),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0284C7),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      bus.speed,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0284C7),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
               ),
-              child: Text(
-                bus.speed,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0284C7), // Primary azure blue
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'Scheduled',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B),
                 ),
               ),
-            ),
-          ],
+            );
+          },
         ),
       ],
     );
   }
 
-  /// Capacity of On-Boarded Passengers Card
+  /// Capacity of On-Boarded Passengers Card (Compressed & Streamlined)
   Widget _buildCapacityCard({
     required int onboarded,
     required int capacity,
     required int available,
     required double occupancy,
   }) {
-    // Dynamic color coding based on capacity
-    final Color statusColor;
-    final String statusLabel;
-
-    if (available <= 0) {
-      statusColor = const Color(0xFFEF4444);
-      statusLabel = 'Full Capacity (100%)';
-    } else if (occupancy >= 0.8) {
-      statusColor = const Color(0xFFF59E0B);
-      statusLabel = 'High Occupancy (${(occupancy * 100).round()}%)';
-    } else if (occupancy >= 0.5) {
-      statusColor = const Color(0xFF0284C7);
-      statusLabel = 'Moderate Occupancy (${(occupancy * 100).round()}%)';
-    } else {
-      statusColor = AppColors.emerald;
-      statusLabel = 'Seats Available (${(occupancy * 100).round()}%)';
-    }
+    final Color statusColor = available <= 0
+        ? const Color(0xFFEF4444)
+        : (occupancy >= 0.8
+            ? const Color(0xFFF59E0B)
+            : AppColors.emerald);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row with Occupancy tag
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.groups_rounded,
-                    size: 17,
-                    color: Color(0xFF0F172A),
+                    size: 16,
+                    color: Color(0xFF475569),
                   ),
-                  SizedBox(width: 6),
+                  const SizedBox(width: 6),
                   Text(
-                    'PASSENGER CAPACITY',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                      color: Color(0xFF64748B),
+                    'Onboarded: $onboarded / $capacity',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E293B),
                     ),
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  statusLabel,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Main Metric Row
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                '$onboarded',
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'onboarded of $capacity capacity',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.event_seat_rounded,
-                      size: 14,
-                      color: available > 0
-                          ? AppColors.emerald
-                          : Colors.redAccent,
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$available Left',
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      '${(occupancy * 100).round()}% Full',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: available > 0
-                            ? const Color(0xFF065F46)
-                            : Colors.redAccent,
+                        color: statusColor,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    available > 0 ? '$available left' : 'Full',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: available > 0
+                          ? const Color(0xFF047857)
+                          : Colors.redAccent,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
-
-          // Visual Capacity Progress Bar
+          const SizedBox(height: 8),
           ClipRRect(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(3),
             child: LinearProgressIndicator(
               value: occupancy,
-              minHeight: 8,
+              minHeight: 5,
               backgroundColor: const Color(0xFFE2E8F0),
               valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // 3 Metric Pills
-          Row(
-            children: [
-              Expanded(
-                child: _buildMetricPill(
-                  label: 'Onboarded',
-                  value: '$onboarded',
-                  color: const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildMetricPill(
-                  label: 'Available',
-                  value: '$available',
-                  color: available > 0 ? AppColors.emerald : Colors.redAccent,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildMetricPill(
-                  label: 'Total Capacity',
-                  value: '$capacity',
-                  color: const Color(0xFF475569),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetricPill({
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF94A3B8),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: color,
             ),
           ),
         ],
@@ -542,17 +485,20 @@ class BusLiveTrackingSheet extends StatelessWidget {
   Widget _buildRouteTimeline(List<BusRouteStop> stops) {
     if (stops.isEmpty) {
       return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 16),
+        padding: EdgeInsets.symmetric(vertical: 12),
         child: Text(
           'No stops registered for this route.',
-          style: TextStyle(color: Color(0xFF64748B)),
+          style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
         ),
       );
     }
 
+    final isStarted = bus.isTripStarted();
+
     return Column(
       children: [
-        if (stops.isNotEmpty && stops.first.isNext) _buildLiveBusCallout(),
+        if (isStarted && stops.isNotEmpty && stops.first.isNext)
+          _buildLiveBusCallout(),
         for (int i = 0; i < stops.length; i++) ...[
           _buildStopRow(
             stops[i],
@@ -560,8 +506,9 @@ class BusLiveTrackingSheet extends StatelessWidget {
             isLast: i == stops.length - 1,
           ),
           // If this is the departed stop right before the next upcoming stop,
-          // render the live in-transit bus callout box!
-          if (stops[i].isDeparted &&
+          // render the live in-transit bus callout box (only if trip is started):
+          if (isStarted &&
+              stops[i].isDeparted &&
               i + 1 < stops.length &&
               stops[i + 1].isNext)
             _buildLiveBusCallout(),
@@ -581,8 +528,8 @@ class BusLiveTrackingSheet extends StatelessWidget {
     if (stop.isDeparted) {
       // Solid grey circle
       circleMarker = Container(
-        width: 14,
-        height: 14,
+        width: 12,
+        height: 12,
         decoration: const BoxDecoration(
           color: Color(0xFF64748B),
           shape: BoxShape.circle,
@@ -591,23 +538,23 @@ class BusLiveTrackingSheet extends StatelessWidget {
     } else if (stop.isNext) {
       // Open blue circle
       circleMarker = Container(
-        width: 14,
-        height: 14,
+        width: 12,
+        height: 12,
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFF0284C7), width: 2.5),
+          border: Border.all(color: const Color(0xFF0284C7), width: 2),
         ),
       );
     } else {
       // Open dark charcoal circle
       circleMarker = Container(
-        width: 14,
-        height: 14,
+        width: 12,
+        height: 12,
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFF0F172A), width: 2.5),
+          border: Border.all(color: const Color(0xFF0F172A), width: 2),
         ),
       );
     }
@@ -618,14 +565,14 @@ class BusLiveTrackingSheet extends StatelessWidget {
         children: [
           // Left vertical timeline indicator
           SizedBox(
-            width: 32,
+            width: 28,
             child: Stack(
               alignment: Alignment.topCenter,
               children: [
                 // Connecting line
                 if (!isLast)
                   Positioned(
-                    top: 14,
+                    top: 12,
                     bottom: 0,
                     child: Container(
                       width: 2,
@@ -636,7 +583,7 @@ class BusLiveTrackingSheet extends StatelessWidget {
                   ),
                 // Marker
                 Padding(
-                  padding: const EdgeInsets.only(top: 4),
+                  padding: const EdgeInsets.only(top: 3),
                   child: circleMarker,
                 ),
               ],
@@ -646,14 +593,14 @@ class BusLiveTrackingSheet extends StatelessWidget {
           // Center: Stop Name & Subtext
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 2, 8, 22),
+              padding: const EdgeInsets.fromLTRB(4, 1, 8, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     stop.name,
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: stop.isDeparted
                           ? const Color(0xFF64748B)
@@ -665,11 +612,11 @@ class BusLiveTrackingSheet extends StatelessWidget {
                     ),
                   ),
                   if (stop.subtext != null && stop.subtext!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Text(
                       stop.subtext!,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         color: stop.isDeparted
                             ? const Color(0xFF94A3B8)
                             : const Color(0xFF64748B),
@@ -683,7 +630,7 @@ class BusLiveTrackingSheet extends StatelessWidget {
 
           // Right: Scheduled time & Status
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 2, 0, 22),
+            padding: const EdgeInsets.fromLTRB(8, 1, 0, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -691,7 +638,7 @@ class BusLiveTrackingSheet extends StatelessWidget {
                   Text(
                     stop.scheduledTime!,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: stop.isDeparted
                           ? const Color(0xFF64748B)
@@ -699,21 +646,19 @@ class BusLiveTrackingSheet extends StatelessWidget {
                     ),
                   ),
                 if (stop.statusText != null) ...[
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     stop.statusText!,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: stop.isDelayed
                           ? FontWeight.bold
                           : FontWeight.w500,
                       color: stop.isDelayed
-                          ? const Color(
-                              0xFFDC2626,
-                            ) // Red/orange for delay & ETA
+                          ? const Color(0xFFDC2626) // Red/orange for delay & ETA
                           : (stop.isDeparted
-                                ? const Color(0xFF94A3B8)
-                                : AppColors.emerald),
+                              ? const Color(0xFF94A3B8)
+                              : AppColors.emerald),
                     ),
                   ),
                 ],
@@ -755,7 +700,7 @@ class BusLiveTrackingSheet extends StatelessWidget {
         children: [
           // Vertical line continues through the callout
           SizedBox(
-            width: 32,
+            width: 28,
             child: Center(
               child: Container(width: 2, color: const Color(0xFFCBD5E1)),
             ),
@@ -764,27 +709,23 @@ class BusLiveTrackingSheet extends StatelessWidget {
           // Dashed Blue Container
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 4, 0, 20),
+              padding: const EdgeInsets.fromLTRB(4, 2, 0, 10),
               child: CustomPaint(
                 painter: DashedBorderPainter(
-                  color: const Color(
-                    0xFF38BDF8,
-                  ), // Cyan / sky blue dashed border
+                  color: const Color(0xFF38BDF8), // Cyan / sky blue dashed border
                   strokeWidth: 1.2,
                   dashWidth: 4,
                   dashSpace: 3,
-                  borderRadius: 10,
+                  borderRadius: 8,
                 ),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
+                    horizontal: 10,
+                    vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(
-                      0xFFF0F9FF,
-                    ), // Soft light-blue background
-                    borderRadius: BorderRadius.circular(10),
+                    color: const Color(0xFFF0F9FF), // Soft light-blue background
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: RichText(
                     text: TextSpan(
@@ -792,7 +733,7 @@ class BusLiveTrackingSheet extends StatelessWidget {
                         TextSpan(
                           text: prefix,
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w500,
                             color: Color(0xFF0369A1),
                           ),
@@ -800,7 +741,7 @@ class BusLiveTrackingSheet extends StatelessWidget {
                         TextSpan(
                           text: body,
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF075985),
                           ),

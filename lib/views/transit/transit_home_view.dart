@@ -34,8 +34,9 @@ class _TransitHomeViewState extends State<TransitHomeView> {
         _controller.pickup = _campusStops.first;
       }
       if (!_campusStops.contains(_controller.drop)) {
-        _controller.drop =
-            _campusStops.length > 1 ? _campusStops[1] : _campusStops.first;
+        _controller.drop = _campusStops.length > 1
+            ? _campusStops[1]
+            : _campusStops.first;
       }
     }
     _controller.addListener(_refresh);
@@ -237,7 +238,9 @@ class _TransitHomeViewState extends State<TransitHomeView> {
     RideRequest? latestNoticeRide;
     if (activeRide == null) {
       for (final r in _controller.rides) {
-        if ((r.status == 'rejected' || r.status == 'completed' || r.status == 'cancelled') &&
+        if ((r.status == 'rejected' ||
+                r.status == 'completed' ||
+                r.status == 'cancelled') &&
             !_dismissedNoticeRideIds.contains(r.id) &&
             DateTime.now().difference(r.createdAt).inMinutes < 60) {
           latestNoticeRide = r;
@@ -307,7 +310,8 @@ class _TransitHomeViewState extends State<TransitHomeView> {
       subColor = const Color(0xFFB91C1C);
       iconData = Icons.cancel_outlined;
       title = 'Ride Request Declined';
-      message = 'The driver was unable to accept your ride from ${ride.pickup} to ${ride.drop}. You can try requesting again.';
+      message =
+          'The driver was unable to accept your ride from ${ride.pickup} to ${ride.drop}. You can try requesting again.';
     } else if (isCancelled) {
       bgColor = const Color(0xFFFFFBEB);
       borderColor = const Color(0xFFFDE68A);
@@ -315,7 +319,8 @@ class _TransitHomeViewState extends State<TransitHomeView> {
       subColor = const Color(0xFF92400E);
       iconData = Icons.info_outline_rounded;
       title = 'Ride Request Cancelled';
-      message = 'Your ride request from ${ride.pickup} to ${ride.drop} has been cancelled.';
+      message =
+          'Your ride request from ${ride.pickup} to ${ride.drop} has been cancelled.';
     } else {
       bgColor = const Color(0xFFECFDF5);
       borderColor = const Color(0xFFA7F3D0);
@@ -323,7 +328,8 @@ class _TransitHomeViewState extends State<TransitHomeView> {
       subColor = const Color(0xFF047857);
       iconData = Icons.check_circle_outline;
       title = 'Ride Completed!';
-      message = 'You arrived at ${ride.drop}. Thank you for traveling with Sarthi!';
+      message =
+          'You arrived at ${ride.drop}. Thank you for traveling with Sarthi!';
     }
 
     return Container(
@@ -351,10 +357,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  message,
-                  style: TextStyle(fontSize: 11, color: subColor),
-                ),
+                Text(message, style: TextStyle(fontSize: 11, color: subColor)),
               ],
             ),
           ),
@@ -374,14 +377,19 @@ class _TransitHomeViewState extends State<TransitHomeView> {
     Color statusColor;
     String statusTitle;
     IconData statusIcon;
+    String? assignedLabel;
 
     switch (ride.status) {
       case 'accepted':
         statusColor = const Color(0xFF2563EB);
-        statusTitle = (ride.assignedCartName != null && ride.assignedCartName!.isNotEmpty)
+        statusTitle =
+            (ride.assignedCartName != null && ride.assignedCartName!.isNotEmpty)
             ? '${ride.assignedCartName} En Route'
             : 'Cart Assigned & En Route';
         statusIcon = Icons.airport_shuttle;
+        if (ride.assignedCartName != null && ride.assignedCartName!.isNotEmpty) {
+          assignedLabel = ride.assignedCartName;
+        }
         break;
       case 'arriving':
         statusColor = const Color(0xFF7C3AED);
@@ -402,17 +410,19 @@ class _TransitHomeViewState extends State<TransitHomeView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // ── Status header row ──────────────────────────────────────
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.12),
+                color: statusColor.withValues(alpha: 0.13),
                 shape: BoxShape.circle,
               ),
-              child: Icon(statusIcon, color: statusColor, size: 22),
+              child: Icon(statusIcon, color: statusColor, size: 20),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,27 +430,13 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                   Text(
                     statusTitle,
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: statusColor,
                     ),
                   ),
-                  if (ride.assignedCartName != null &&
-                      ride.assignedCartName!.isNotEmpty &&
-                      ride.status != 'pending')
-                    Padding(
-                      padding: const EdgeInsets.only(top: 1),
-                      child: Text(
-                        'Assigned: ${ride.assignedCartName}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: statusColor,
-                        ),
-                      ),
-                    ),
                   Text(
-                    'Requested ${ride.createdLabel}',
+                    assignedLabel ?? 'Requested ${ride.createdLabel}',
                     style: const TextStyle(
                       fontSize: 11,
                       color: Color(0xFF6B7280),
@@ -451,49 +447,66 @@ class _TransitHomeViewState extends State<TransitHomeView> {
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
+        // ── Pickup / Drop container ────────────────────────────────
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: const Color(0xFFF9FAFB),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(color: const Color(0xFFE5E7EB)),
           ),
           child: Column(
             children: [
               Row(
                 children: [
-                  const Icon(Icons.circle, color: AppColors.emerald, size: 10),
+                  const Icon(Icons.circle, color: AppColors.emerald, size: 9),
                   const SizedBox(width: 8),
                   const Text(
                     'Pickup: ',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      color: Color(0xFF374151),
+                    ),
                   ),
                   Expanded(
                     child: Text(
                       ride.pickup,
-                      style: const TextStyle(fontSize: 13),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF374151),
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-              const Divider(height: 16),
+              const SizedBox(height: 6),
               Row(
                 children: [
                   const Icon(
                     Icons.location_on,
                     color: Colors.redAccent,
-                    size: 12,
+                    size: 11,
                   ),
                   const SizedBox(width: 8),
                   const Text(
                     'Drop: ',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      color: Color(0xFF374151),
+                    ),
                   ),
                   Expanded(
                     child: Text(
                       ride.drop,
-                      style: const TextStyle(fontSize: 13),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF374151),
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -501,25 +514,38 @@ class _TransitHomeViewState extends State<TransitHomeView> {
             ],
           ),
         ),
-        const SizedBox(height: 14),
-        OutlinedButton.icon(
-          onPressed: () async {
-            await _controller.cancelActiveRide(ride.id);
-          },
-          icon: const Icon(Icons.close, size: 16, color: Colors.redAccent),
-          label: const Text(
-            'Cancel Request',
-            style: TextStyle(
-              color: Colors.redAccent,
-              fontWeight: FontWeight.w600,
+        const SizedBox(height: 10),
+        // ── Cancel button ──────────────────────────────────────────
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () async {
+              await _controller.cancelActiveRide(ride.id);
+            },
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFFFCA5A5)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-          ),
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Color(0xFFFCA5A5)),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Icon(Icons.close, size: 14, color: Colors.redAccent),
+                SizedBox(width: 6),
+                Text(
+                  'Cancel Request',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-            padding: const EdgeInsets.symmetric(vertical: 12),
           ),
         ),
       ],
@@ -535,7 +561,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Hail Campus EV Cart',
+              'Campus EV Cart',
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
             ),
             Container(
@@ -703,7 +729,9 @@ class _TransitHomeViewState extends State<TransitHomeView> {
           Expanded(
             child: _compactDayItem(
               label: isCustom
-                  ? _controller.formatShortDate(_controller.selectedScheduleDate)
+                  ? _controller.formatShortDate(
+                      _controller.selectedScheduleDate,
+                    )
                   : 'Date',
               icon: Icons.calendar_today_rounded,
               isSelected: isCustom,
@@ -795,7 +823,9 @@ class _TransitHomeViewState extends State<TransitHomeView> {
   }
 
   Widget _busList() {
-    final activeTickets = _controller.tickets.where((t) => !t.isConfirmed).toList();
+    final activeTickets = _controller.tickets
+        .where((t) => !t.isConfirmed)
+        .toList();
     final latestActiveTicket = activeTickets.isNotEmpty
         ? activeTickets.first
         : (_controller.tickets.isNotEmpty ? _controller.tickets.first : null);
@@ -823,12 +853,18 @@ class _TransitHomeViewState extends State<TransitHomeView> {
               children: [
                 Text(
                   'Trips for ${_controller.selectedScheduleDayLabel}',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${displayedBuses.length} scheduled trips available',
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF6B7280),
+                  ),
                 ),
               ],
             ),
@@ -880,7 +916,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
         else
           for (final bus in displayedBuses) ...[
             _busCard(bus),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
           ],
       ],
     );
@@ -898,10 +934,14 @@ class _TransitHomeViewState extends State<TransitHomeView> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isConfirmed ? const Color(0xFFEFF6FF) : const Color(0xFFECFDF5),
+            color: isConfirmed
+                ? const Color(0xFFEFF6FF)
+                : const Color(0xFFECFDF5),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isConfirmed ? const Color(0xFFBFDBFE) : const Color(0xFFA7F3D0),
+              color: isConfirmed
+                  ? const Color(0xFFBFDBFE)
+                  : const Color(0xFFA7F3D0),
             ),
           ),
           child: Row(
@@ -1002,22 +1042,23 @@ class _TransitHomeViewState extends State<TransitHomeView> {
     final Color occupancyColor = bus.isFull
         ? Colors.redAccent
         : (occupancy >= 0.8 ? const Color(0xFFF59E0B) : AppColors.emerald);
+    final isStarted = _controller.isTripStarted(bus);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _openBusLiveTrackingModal(bus),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0xFFE5E7EB)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x08000000),
-                blurRadius: 8,
+                color: Color(0x06000000),
+                blurRadius: 6,
                 offset: Offset(0, 2),
               ),
             ],
@@ -1025,228 +1066,265 @@ class _TransitHomeViewState extends State<TransitHomeView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top line: Departure time, Live Speed badge, Registration number
+              // Top line: Departure time, Live Speed badge (ONLY if started), Reg number
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
+                          horizontal: 8,
+                          vertical: 3,
                         ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFECFDF5),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(
                               Icons.schedule,
-                              size: 14,
+                              size: 13,
                               color: AppColors.emerald,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               bus.departureTime,
                               style: const TextStyle(
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF065F46),
                               ),
                             ),
+                            if (bus.arrivalTime != null &&
+                                bus.arrivalTime!.isNotEmpty) ...[
+                              Text(
+                                ' → ${bus.arrivalTime}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF047857),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE0F2FE),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF0284C7),
-                                shape: BoxShape.circle,
+                      const SizedBox(width: 6),
+                      // Speed badge ONLY shown if trip is actively running:
+                      if (isStarted)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE0F2FE),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 5,
+                                height: 5,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF0284C7),
+                                  shape: BoxShape.circle,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              bus.speed,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF0284C7),
+                              const SizedBox(width: 4),
+                              Text(
+                                bus.speed,
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0284C7),
+                                ),
                               ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'Scheduled',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF64748B),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
                     ],
                   ),
                   Text(
                     bus.registrationNumber,
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF6B7280),
+                      color: Color(0xFF94A3B8),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 7),
 
-              // Route name as title
+              // Route name as title (compact modern typography)
               Text(
                 bus.route,
                 style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
                   color: Color(0xFF0F172A),
+                  height: 1.25,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
-              // Onboarded passenger capacity & occupancy progress bar
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFF1F5F9)),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.groups_rounded,
-                              size: 15,
-                              color: Color(0xFF64748B),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Onboarded: $onboarded / $capacity passengers',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF334155),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          '${(occupancy * 100).round()}% Full',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: occupancyColor,
-                          ),
-                        ),
-                      ],
+              // Compressed inline passenger occupancy bar
+              Row(
+                children: [
+                  const Icon(
+                    Icons.people_outline_rounded,
+                    size: 13,
+                    color: Color(0xFF64748B),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$onboarded/$capacity onboard',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF475569),
                     ),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
                       child: LinearProgressIndicator(
                         value: occupancy,
-                        minHeight: 6,
+                        minHeight: 4,
                         backgroundColor: const Color(0xFFE2E8F0),
-                        valueColor: AlwaysStoppedAnimation<Color>(occupancyColor),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          occupancyColor,
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${(occupancy * 100).round()}%',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: occupancyColor,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
               // Bottom row: Seats available + Live Route button & Book Seat button
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.event_seat_rounded,
-                        size: 16,
-                        color: bus.isFull ? Colors.redAccent : AppColors.emerald,
+                        size: 14,
+                        color: bus.isFull
+                            ? Colors.redAccent
+                            : AppColors.emerald,
                       ),
-                      const SizedBox(width: 5),
+                      const SizedBox(width: 4),
                       Text(
-                        bus.isFull
-                            ? 'Full (0 Seats)'
-                            : '${bus.availableSeats} seats left',
+                        bus.isFull ? 'Bus Full' : '${bus.availableSeats} seats',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: bus.isFull
                               ? Colors.redAccent
-                              : const Color(0xFF374151),
+                              : const Color(0xFF047857),
                         ),
                       ),
                     ],
                   ),
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      TextButton.icon(
-                        onPressed: () => _openBusLiveTrackingModal(bus),
-                        icon: const Icon(
-                          Icons.route_rounded,
-                          size: 15,
-                          color: Color(0xFF0284C7),
-                        ),
-                        label: const Text(
-                          'Live Route',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0284C7),
-                          ),
-                        ),
-                        style: TextButton.styleFrom(
+                      InkWell(
+                        onTap: () => _openBusLiveTrackingModal(bus),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
-                            vertical: 6,
+                            vertical: 5,
                           ),
-                          visualDensity: VisualDensity.compact,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F9FF),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.route_rounded,
+                                size: 13,
+                                color: Color(0xFF0284C7),
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Live Route',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0284C7),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      ElevatedButton(
-                        onPressed: bus.isFull
-                            ? null
-                            : () => _openBookSeatModal(bus),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.emerald,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
+                      const SizedBox(width: 6),
+                      SizedBox(
+                        height: 28,
+                        child: ElevatedButton(
+                          onPressed: bus.isFull
+                              ? null
+                              : () => _openBookSeatModal(bus),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.emerald,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            elevation: 0,
+                            visualDensity: VisualDensity.compact,
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Book Seat',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                          child: const Text(
+                            'Book Seat',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
@@ -1352,8 +1430,10 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                 ),
                 const SizedBox(height: 14),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF4FDF8),
                     borderRadius: BorderRadius.circular(10),
@@ -1361,8 +1441,11 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.event_seat_rounded,
-                          size: 16, color: Color(0xFF059669)),
+                      const Icon(
+                        Icons.event_seat_rounded,
+                        size: 16,
+                        color: Color(0xFF059669),
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         '${bus.availableSeats} of ${bus.totalSeats} seats remaining',
@@ -1525,8 +1608,11 @@ class _TransitHomeViewState extends State<TransitHomeView> {
               child: DropdownButton<String>(
                 value: validValue,
                 isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down,
-                    color: Color(0xFF9CA3AF), size: 20),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down,
+                  color: Color(0xFF9CA3AF),
+                  size: 20,
+                ),
                 items: options.map((s) {
                   return DropdownMenuItem<String>(
                     value: s,
@@ -1572,7 +1658,10 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                 const SizedBox(width: 8),
                 Text(
                   ticket.isConfirmed ? 'Ticket Boarded' : 'Ticket Confirmed',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ],
             ),
@@ -1624,12 +1713,18 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.circle, color: AppColors.emerald, size: 8),
+                      const Icon(
+                        Icons.circle,
+                        color: AppColors.emerald,
+                        size: 8,
+                      ),
                       const SizedBox(width: 6),
                       const Text(
                         'Pickup: ',
-                        style:
-                            TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Expanded(
                         child: Text(
@@ -1643,13 +1738,18 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                   const Divider(height: 10),
                   Row(
                     children: [
-                      const Icon(Icons.location_on,
-                          color: Colors.redAccent, size: 10),
+                      const Icon(
+                        Icons.location_on,
+                        color: Colors.redAccent,
+                        size: 10,
+                      ),
                       const SizedBox(width: 6),
                       const Text(
                         'Drop: ',
-                        style:
-                            TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Expanded(
                         child: Text(
@@ -1665,18 +1765,16 @@ class _TransitHomeViewState extends State<TransitHomeView> {
             ),
             const SizedBox(height: 14),
             // Live scannable QR Code
-            QrCodeWidget(
-              data: ticket.id,
-              size: 190,
-              showCenterBadge: true,
-            ),
+            QrCodeWidget(data: ticket.id, size: 190, showCenterBadge: true),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 color: AppColors.emerald.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.emerald.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: AppColors.emerald.withValues(alpha: 0.3),
+                ),
               ),
               child: Text(
                 ticket.id,
@@ -1820,9 +1918,9 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                                               Container(
                                                 padding:
                                                     const EdgeInsets.symmetric(
-                                                  horizontal: 6,
-                                                  vertical: 2,
-                                                ),
+                                                      horizontal: 6,
+                                                      vertical: 2,
+                                                    ),
                                                 decoration: BoxDecoration(
                                                   color: ticket.isConfirmed
                                                       ? const Color(0xFFDBEAFE)
@@ -1838,8 +1936,12 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                                                     fontSize: 9,
                                                     fontWeight: FontWeight.bold,
                                                     color: ticket.isConfirmed
-                                                        ? const Color(0xFF1D4ED8)
-                                                        : const Color(0xFF15803D),
+                                                        ? const Color(
+                                                            0xFF1D4ED8,
+                                                          )
+                                                        : const Color(
+                                                            0xFF15803D,
+                                                          ),
                                                   ),
                                                 ),
                                               ),
@@ -1883,8 +1985,9 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                                         vertical: 6,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppColors.emerald
-                                            .withValues(alpha: 0.1),
+                                        color: AppColors.emerald.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Row(

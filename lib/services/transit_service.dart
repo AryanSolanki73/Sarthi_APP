@@ -60,27 +60,12 @@ class FirebaseTransitService implements TransitService {
   @override
   Stream<List<Bus>> streamBuses() {
     return _busesRef.snapshots().map((snapshot) {
-      final hasWeeklySchedule = snapshot.docs.any(
-        (doc) => doc.data().containsKey('scheduleDayId'),
-      );
-      final today = _scheduleDayIdFor(DateTime.now());
       return snapshot.docs
-          .where((doc) => !hasWeeklySchedule || doc.data()['scheduleDayId'] == today)
           .map((doc) => Bus.fromDoc(doc))
           .where((bus) => bus.isActive)
           .toList();
     });
   }
-
-  String _scheduleDayIdFor(DateTime date) => switch (date.weekday) {
-        DateTime.monday => 'monday',
-        DateTime.tuesday || DateTime.wednesday || DateTime.thursday =>
-          'tuesday_thursday',
-        DateTime.friday => 'friday',
-        DateTime.saturday => 'saturday_holidays',
-        DateTime.sunday => 'sunday',
-        _ => 'monday',
-      };
 
   /// One-time fetch of scheduled buses.
   @override
@@ -91,12 +76,7 @@ class FirebaseTransitService implements TransitService {
       final fresh = await _busesRef.get();
       return fresh.docs.map((doc) => Bus.fromDoc(doc)).toList();
     }
-    final hasWeeklySchedule = snapshot.docs.any(
-      (doc) => doc.data().containsKey('scheduleDayId'),
-    );
-    final today = _scheduleDayIdFor(DateTime.now());
     return snapshot.docs
-        .where((doc) => !hasWeeklySchedule || doc.data()['scheduleDayId'] == today)
         .map((doc) => Bus.fromDoc(doc))
         .where((bus) => bus.isActive)
         .toList();
@@ -173,29 +153,87 @@ class FirebaseTransitService implements TransitService {
     required String pickup,
     required String destination,
   }) async {
-    final busDocRef = _busesRef.doc(bus.id);
+    // 1. Locate the bus document in Firestore
+    DocumentReference<Map<String, dynamic>> busDocRef = _busesRef.doc(bus.id);
+    DocumentSnapshot<Map<String, dynamic>> busSnapshot = await busDocRef.get();
+
+    if (!busSnapshot.exists) {
+      // Try toggling the 'schedule_' prefix
+      final altId = bus.id.startsWith('schedule_')
+          ? bus.id.replaceFirst('schedule_', '')
+          : 'schedule_${bus.id}';
+      final altRef = _busesRef.doc(altId);
+      final altSnap = await altRef.get();
+      if (altSnap.exists) {
+        busDocRef = altRef;
+        busSnapshot = altSnap;
+      }
+    }
+
+    if (!busSnapshot.exists && bus.scheduleDayId != null) {
+      // Try querying by scheduleDayId and registration or departure
+      final query = await _busesRef
+          .where('scheduleDayId', isEqualTo: bus.scheduleDayId)
+          .get();
+      for (final doc in query.docs) {
+        final data = doc.data();
+        if (data['route'] == bus.route &&
+            (data['departureTime'] == bus.departureTime ||
+                data['registrationNumber'] == bus.registrationNumber)) {
+          busDocRef = doc.reference;
+          busSnapshot = doc;
+          break;
+        }
+      }
+    }
+
+    if (!busSnapshot.exists) {
+      // Fallback: match by route name
+      final query = await _busesRef
+          .where('route', isEqualTo: bus.route)
+          .limit(5)
+          .get();
+      for (final doc in query.docs) {
+        final data = doc.data();
+        if (data['departureTime'] == bus.departureTime ||
+            data['registrationNumber'] == bus.registrationNumber) {
+          busDocRef = doc.reference;
+          busSnapshot = doc;
+          break;
+        }
+      }
+    }
+
+    // Auto-create document if missing in Firestore so booking succeeds seamlessly
+    if (!busSnapshot.exists) {
+      await busDocRef.set(bus.toMap());
+      busSnapshot = await busDocRef.get();
+    }
+
+    final targetRef = busDocRef;
     final now = DateTime.now();
     final ticketId = 'TKT-${now.millisecondsSinceEpoch.toString().substring(7)}';
     final ticketDocRef = _ticketsRef.doc(ticketId);
 
     return await _firestore.runTransaction<Ticket>((transaction) async {
-      final busSnapshot = await transaction.get(busDocRef);
-      if (!busSnapshot.exists) {
+      final snap = await transaction.get(targetRef);
+      if (!snap.exists) {
         throw Exception('Selected bus route does not exist.');
       }
 
-      final available = (busSnapshot.data()?['availableSeats'] as num?)?.toInt() ?? 0;
+      final available = (snap.data()?['availableSeats'] as num?)?.toInt() ?? 0;
       if (available <= 0) {
         throw Exception('Sorry, no seats remaining on this bus.');
       }
 
       // Decrement seats
-      transaction.update(busDocRef, {'availableSeats': available - 1});
+      transaction.update(targetRef, {'availableSeats': available - 1});
 
       final updatedBus = Bus(
-        id: bus.id,
+        id: targetRef.id,
         route: bus.route,
         departureTime: bus.departureTime,
+        arrivalTime: bus.arrivalTime,
         availableSeats: available - 1,
         totalSeats: bus.totalSeats,
         registrationNumber: bus.registrationNumber,
@@ -206,6 +244,7 @@ class FirebaseTransitService implements TransitService {
         currentStopIndex: bus.currentStopIndex,
         gpsAccuracy: bus.gpsAccuracy,
         lastUpdated: bus.lastUpdated,
+        scheduleDayId: bus.scheduleDayId,
       );
 
       final ticket = Ticket(

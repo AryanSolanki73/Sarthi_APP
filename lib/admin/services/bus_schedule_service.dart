@@ -82,9 +82,9 @@ class BusScheduleService {
 
     try {
       // Save the currently displayed schedule before publishing the weekly set.
-      await scheduleRef.doc(schedule.dayId).set(
-        schedule.copyWith(lastUpdated: DateTime.now()).toMap(),
-      );
+      await scheduleRef
+          .doc(schedule.dayId)
+          .set(schedule.copyWith(lastUpdated: DateTime.now()).toMap());
 
       final schedules = <DayBusSchedule>[];
       for (final dayId in OfficialBusScheduleData.allDefaultSchedules.keys) {
@@ -152,39 +152,37 @@ class BusScheduleService {
     await batch.commit();
   }
 
-  Map<String, dynamic> _busData(DayBusSchedule schedule, ScheduledTrip trip) =>
-      {
-        'route': trip.title,
-        'departureTime': trip.departureTime,
-        'arrivalTime': trip.arrivalTime,
-        'availableSeats': trip.availableSeats,
-        'totalSeats': trip.totalSeats,
-        'registrationNumber': trip.registrationNumber,
-        'isActive': true,
-        'stops': trip.stops
-            .map(
-              (s) => {
-                'name': s.stopName,
-                'time': s.time,
-                'type': s.type,
-                'subtext': s.type == 'departure'
-                    ? 'Departure Point'
-                    : (s.type == 'arrival'
-                        ? 'Final Destination'
-                        : 'Transit Halt'),
-              },
-            )
-            .toList(),
-        'scheduledStops': trip.stops.map((stop) => stop.toMap()).toList(),
-        'scheduleDayId': schedule.dayId,
-        'tripNumber': trip.tripNumber,
-        'stopsCount': trip.stops.length,
-        'speed': '52 km/h',
-        'currentStopIndex': 1,
-        if (trip.note != null) 'note': trip.note,
-      };
-
-      
+  Map<String, dynamic> _busData(
+    DayBusSchedule schedule,
+    ScheduledTrip trip,
+  ) => {
+    'route': trip.title,
+    'departureTime': trip.departureTime,
+    'arrivalTime': trip.arrivalTime,
+    'availableSeats': trip.availableSeats,
+    'totalSeats': trip.totalSeats,
+    'registrationNumber': trip.registrationNumber,
+    'isActive': true,
+    'stops': trip.stops
+        .map(
+          (s) => {
+            'name': s.stopName,
+            'time': s.time,
+            'type': s.type,
+            'subtext': s.type == 'departure'
+                ? 'Departure Point'
+                : (s.type == 'arrival' ? 'Final Destination' : 'Transit Halt'),
+          },
+        )
+        .toList(),
+    'scheduledStops': trip.stops.map((stop) => stop.toMap()).toList(),
+    'scheduleDayId': schedule.dayId,
+    'tripNumber': trip.tripNumber,
+    'stopsCount': trip.stops.length,
+    'speed': '52 km/h',
+    'currentStopIndex': 1,
+    if (trip.note != null) 'note': trip.note,
+  };
 
   /// Resets a day's schedule back to the official IIT Ropar PDF timetable defaults.
   Future<DayBusSchedule> resetScheduleToDefault(String dayId) async {
