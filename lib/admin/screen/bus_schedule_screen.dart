@@ -33,6 +33,7 @@ class _BusScheduleScreenState extends State<BusScheduleScreen> {
   DayBusSchedule? _currentSchedule;
   bool _isLoading = true;
   bool _isPublishing = false;
+  bool _isWeeklyPublished = false;
   String _searchQuery = '';
   _TimeFilter _selectedTimeFilter = _TimeFilter.all;
 
@@ -52,6 +53,7 @@ class _BusScheduleScreenState extends State<BusScheduleScreen> {
     _service = widget.service ?? BusScheduleService();
     _selectedDayId = widget.initialDayId;
     _loadScheduleForDay(_selectedDayId);
+    _loadPublishState();
   }
 
   @override
@@ -79,6 +81,15 @@ class _BusScheduleScreenState extends State<BusScheduleScreen> {
     }
   }
 
+  Future<void> _loadPublishState() async {
+    try {
+      final published = await _service.hasWeeklyScheduleBeenPublished();
+      if (mounted) setState(() => _isWeeklyPublished = published);
+    } catch (_) {
+      // Schedule loading still works if the publication status is unavailable.
+    }
+  }
+
   Future<void> _publishActiveSchedule() async {
     if (_currentSchedule == null) return;
     setState(() => _isPublishing = true);
@@ -86,8 +97,9 @@ class _BusScheduleScreenState extends State<BusScheduleScreen> {
     try {
       await _service.publishScheduleToLiveBuses(_currentSchedule!);
       if (mounted) {
+        setState(() => _isWeeklyPublished = true);
         _showNotification(
-          '${_currentSchedule!.dayTitle} schedule published successfully to live student app!',
+          'Weekly schedule published. It repeats automatically, and future edits sync to the student app.',
           isError: false,
         );
       }
@@ -373,7 +385,7 @@ class _BusScheduleScreenState extends State<BusScheduleScreen> {
             ],
           ),
           const Spacer(),
-          if (isDesktop) ...[
+          if (isDesktop && !_isWeeklyPublished) ...[
             FilledButton.icon(
               onPressed: _isPublishing ? null : _publishActiveSchedule,
               icon: _isPublishing
@@ -386,7 +398,7 @@ class _BusScheduleScreenState extends State<BusScheduleScreen> {
                       ),
                     )
                   : const Icon(Icons.cloud_upload_outlined, size: 18),
-              label: Text(_isPublishing ? 'Publishing...' : 'Set Active for Today'),
+              label: Text(_isPublishing ? 'Publishing...' : 'Publish Weekly Schedule'),
               style: FilledButton.styleFrom(
                 backgroundColor: _green,
                 foregroundColor: Colors.white,
@@ -637,11 +649,11 @@ class _BusScheduleScreenState extends State<BusScheduleScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                     ),
                   ),
-                  if (!isDesktop)
+                  if (!isDesktop && !_isWeeklyPublished)
                     FilledButton.icon(
                       onPressed: _isPublishing ? null : _publishActiveSchedule,
                       icon: const Icon(Icons.cloud_upload_outlined, size: 16),
-                      label: Text(_isPublishing ? 'Publishing...' : 'Publish to Live App'),
+                      label: Text(_isPublishing ? 'Publishing...' : 'Publish Weekly Schedule'),
                       style: FilledButton.styleFrom(
                         backgroundColor: _green,
                         foregroundColor: Colors.white,
@@ -651,6 +663,14 @@ class _BusScheduleScreenState extends State<BusScheduleScreen> {
                     ),
                 ],
               ),
+              if (_isWeeklyPublished)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Weekly schedule is live. It repeats automatically; saved edits sync to students.',
+                    style: TextStyle(color: _green, fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
             ],
           ),
         ],

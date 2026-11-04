@@ -16,6 +16,12 @@ class BusScheduleService {
   CollectionReference<Map<String, dynamic>>? get _busesRef =>
       _firestore?.collection('buses');
 
+  Future<bool> hasWeeklyScheduleBeenPublished() async {
+    if (_scheduleRef == null) return false;
+    final metadata = await _scheduleRef!.doc('active_meta').get();
+    return metadata.data()?['isWeeklyPublished'] == true;
+  }
+
   /// Fetches the schedule for a specific day ID. Returns the official PDF default
   /// if not customized in Firestore or if offline.
   Future<DayBusSchedule> getScheduleForDay(String dayId) async {
@@ -41,64 +47,65 @@ class BusScheduleService {
 
   /// Saves a customized schedule for a day to Firestore.
   Future<void> saveSchedule(DayBusSchedule schedule) async {
-    if (_scheduleRef == null) return;
+    if (_scheduleRef == null) {
+      throw StateError('Firebase is not initialized; the schedule was not saved.');
+    }
     try {
       final updated = schedule.copyWith(lastUpdated: DateTime.now());
       await _scheduleRef!.doc(schedule.dayId).set(updated.toMap());
+      final publishState = await _scheduleRef!.doc('active_meta').get();
+      if (publishState.data()?['isWeeklyPublished'] == true) {
+        await _syncDayToLiveBuses(updated);
+      }
     } catch (e) {
       debugPrint('Error saving bus schedule: $e');
       rethrow;
     }
   }
 
-  /// Sets this schedule as the active live timetable in the student app.
-  /// Synchronizes all active trips into the `buses` collection so students see
-  /// today's real bus schedule on `TransitHomeView`.
+  /// Publishes every weekday schedule once. The student app selects today's
+  /// schedule from Firestore, and later edits sync automatically in saveSchedule.
   Future<void> publishScheduleToLiveBuses(DayBusSchedule schedule) async {
-    // 1. Save to schedule collection
-    await saveSchedule(schedule);
-
-    if (_busesRef == null) return;
+    if (_firestore == null || _busesRef == null) {
+      throw StateError('Firebase is not initialized; the schedule was not published.');
+    }
 
     try {
-      // 2. Fetch existing buses to update or clean
+      // Save the currently displayed schedule before publishing the weekly set.
+      await _scheduleRef!.doc(schedule.dayId).set(
+        schedule.copyWith(lastUpdated: DateTime.now()).toMap(),
+      );
+
+      final schedules = <DayBusSchedule>[];
+      for (final dayId in OfficialBusScheduleData.allDefaultSchedules.keys) {
+        schedules.add(await getScheduleForDay(dayId));
+      }
+
+      // Remove prior schedule uploads while preserving unrelated bus records.
       final existingBuses = await _busesRef!.get();
       final batch = _firestore!.batch();
-
-      // Clear previous auto-scheduled buses or mark them
+      final scheduledBuses = <String, Map<String, dynamic>>{};
+      for (final daySchedule in schedules) {
+        for (final trip in daySchedule.trips.where((trip) => trip.isActive)) {
+          scheduledBuses['schedule_${daySchedule.dayId}_${trip.id}'] =
+              _busData(daySchedule, trip);
+        }
+      }
       for (final doc in existingBuses.docs) {
-        batch.delete(doc.reference);
+        if (doc.data().containsKey('scheduleDayId') &&
+            !scheduledBuses.containsKey(doc.id)) {
+          batch.delete(doc.reference);
+        }
+      }
+      for (final entry in scheduledBuses.entries) {
+        batch.set(_busesRef!.doc(entry.key), entry.value);
       }
 
-      // 3. Insert active trips from this schedule
-      for (final trip in schedule.trips) {
-        if (!trip.isActive) continue;
-
-        final newDoc = _busesRef!.doc();
-        batch.set(newDoc, {
-          'route': trip.title,
-          'departureTime': trip.departureTime,
-          'arrivalTime': trip.arrivalTime,
-          'availableSeats': trip.availableSeats,
-          'totalSeats': trip.totalSeats,
-          'registrationNumber': trip.registrationNumber,
-          'isActive': true,
-          'scheduleDayId': schedule.dayId,
-          'tripNumber': trip.tripNumber,
-          'stopsCount': trip.stops.length,
-          if (trip.note != null) 'note': trip.note,
-        });
-      }
-
-      // Record metadata about the active published schedule
-      if (_scheduleRef != null) {
-        batch.set(_scheduleRef!.doc('active_meta'), {
-          'activeDayId': schedule.dayId,
-          'activeDayTitle': schedule.dayTitle,
-          'publishedAt': FieldValue.serverTimestamp(),
-          'totalActiveTrips': schedule.trips.where((t) => t.isActive).length,
-        });
-      }
+      batch.set(_scheduleRef!.doc('active_meta'), {
+        'isWeeklyPublished': true,
+        'publishedAt': FieldValue.serverTimestamp(),
+        'scheduleDays': schedules.map((item) => item.dayId).toList(),
+      }, SetOptions(merge: true));
 
       await batch.commit();
     } catch (e) {
@@ -106,6 +113,44 @@ class BusScheduleService {
       rethrow;
     }
   }
+
+  Future<void> _syncDayToLiveBuses(DayBusSchedule schedule) async {
+    final firestore = _firestore;
+    final buses = _busesRef;
+    if (firestore == null || buses == null) return;
+
+    final current = await buses
+        .where('scheduleDayId', isEqualTo: schedule.dayId)
+        .get();
+    final batch = firestore.batch();
+    final scheduledBuses = <String, Map<String, dynamic>>{
+      for (final trip in schedule.trips.where((trip) => trip.isActive))
+        'schedule_${schedule.dayId}_${trip.id}': _busData(schedule, trip),
+    };
+    for (final doc in current.docs) {
+      if (!scheduledBuses.containsKey(doc.id)) batch.delete(doc.reference);
+    }
+    for (final entry in scheduledBuses.entries) {
+      batch.set(buses.doc(entry.key), entry.value);
+    }
+    await batch.commit();
+  }
+
+  Map<String, dynamic> _busData(DayBusSchedule schedule, ScheduledTrip trip) => {
+        'route': trip.title,
+        'departureTime': trip.departureTime,
+        'arrivalTime': trip.arrivalTime,
+        'availableSeats': trip.availableSeats,
+        'totalSeats': trip.totalSeats,
+        'registrationNumber': trip.registrationNumber,
+        'isActive': true,
+        'stops': trip.stops.map((stop) => stop.stopName).toList(),
+        'scheduledStops': trip.stops.map((stop) => stop.toMap()).toList(),
+        'scheduleDayId': schedule.dayId,
+        'tripNumber': trip.tripNumber,
+        'stopsCount': trip.stops.length,
+        if (trip.note != null) 'note': trip.note,
+      };
 
   /// Resets a day's schedule back to the official IIT Ropar PDF timetable defaults.
   Future<DayBusSchedule> resetScheduleToDefault(String dayId) async {
@@ -116,6 +161,10 @@ class BusScheduleService {
     if (_scheduleRef != null) {
       try {
         await _scheduleRef!.doc(dayId).delete();
+        final published = await _scheduleRef!.doc('active_meta').get();
+        if (published.data()?['isWeeklyPublished'] == true) {
+          await _syncDayToLiveBuses(defaultSchedule);
+        }
       } catch (e) {
         debugPrint('Error deleting custom schedule doc: $e');
       }
