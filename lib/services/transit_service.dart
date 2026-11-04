@@ -60,12 +60,27 @@ class FirebaseTransitService implements TransitService {
   @override
   Stream<List<Bus>> streamBuses() {
     return _busesRef.snapshots().map((snapshot) {
+      final hasWeeklySchedule = snapshot.docs.any(
+        (doc) => doc.data().containsKey('scheduleDayId'),
+      );
+      final today = _scheduleDayIdFor(DateTime.now());
       return snapshot.docs
+          .where((doc) => !hasWeeklySchedule || doc.data()['scheduleDayId'] == today)
           .map((doc) => Bus.fromDoc(doc))
           .where((bus) => bus.isActive)
           .toList();
     });
   }
+
+  String _scheduleDayIdFor(DateTime date) => switch (date.weekday) {
+        DateTime.monday => 'monday',
+        DateTime.tuesday || DateTime.wednesday || DateTime.thursday =>
+          'tuesday_thursday',
+        DateTime.friday => 'friday',
+        DateTime.saturday => 'saturday_holidays',
+        DateTime.sunday => 'sunday',
+        _ => 'monday',
+      };
 
   /// One-time fetch of scheduled buses.
   @override
@@ -76,7 +91,15 @@ class FirebaseTransitService implements TransitService {
       final fresh = await _busesRef.get();
       return fresh.docs.map((doc) => Bus.fromDoc(doc)).toList();
     }
-    return snapshot.docs.map((doc) => Bus.fromDoc(doc)).toList();
+    final hasWeeklySchedule = snapshot.docs.any(
+      (doc) => doc.data().containsKey('scheduleDayId'),
+    );
+    final today = _scheduleDayIdFor(DateTime.now());
+    return snapshot.docs
+        .where((doc) => !hasWeeklySchedule || doc.data()['scheduleDayId'] == today)
+        .map((doc) => Bus.fromDoc(doc))
+        .where((bus) => bus.isActive)
+        .toList();
   }
 
   /// Real-time stream of live EV cart GPS locations on campus from "locations".
