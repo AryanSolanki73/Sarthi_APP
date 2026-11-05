@@ -387,7 +387,8 @@ class _TransitHomeViewState extends State<TransitHomeView> {
             ? '${ride.assignedCartName} En Route'
             : 'Cart Assigned & En Route';
         statusIcon = Icons.airport_shuttle;
-        if (ride.assignedCartName != null && ride.assignedCartName!.isNotEmpty) {
+        if (ride.assignedCartName != null &&
+            ride.assignedCartName!.isNotEmpty) {
           assignedLabel = ride.assignedCartName;
         }
         break;
@@ -552,36 +553,74 @@ class _TransitHomeViewState extends State<TransitHomeView> {
     );
   }
 
-  Widget _cartBookingForm() => Container(
-    margin: const EdgeInsets.all(5),
-    child: Column(
+  Widget _cartBookingForm() {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Header
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Campus EV Cart',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: Color(0xFFECFDF5),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.electric_rickshaw,
+                color: AppColors.emerald,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Campus EV Cart',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Free Campus Shuttle',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF059669),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
               decoration: BoxDecoration(
                 color: const Color(0xFFECFDF5),
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
               ),
-              child: const Text(
-                'Free Campus Shuttle',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF065F46),
-                ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.circle, color: AppColors.emerald, size: 7),
+                  SizedBox(width: 4),
+                  Text(
+                    'Available',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF065F46),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
+        // Pickup dropdown
         _stopDropdown(
           label: 'Pickup Point',
           icon: Icons.my_location,
@@ -592,6 +631,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
           },
         ),
         const SizedBox(height: 10),
+        // Drop dropdown
         _stopDropdown(
           label: 'Drop Location',
           icon: Icons.location_on,
@@ -601,8 +641,9 @@ class _TransitHomeViewState extends State<TransitHomeView> {
             if (val != null) _controller.setDrop(val);
           },
         ),
-        const SizedBox(height: 16),
-        ElevatedButton.icon(
+        const SizedBox(height: 14),
+        // Request button
+        ElevatedButton(
           onPressed: _isRequesting
               ? null
               : () async {
@@ -622,8 +663,19 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                     if (mounted) setState(() => _isRequesting = false);
                   }
                 },
-          icon: _isRequesting
-              ? const SizedBox(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.emerald,
+            padding: const EdgeInsets.symmetric(vertical: 13),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            elevation: 1,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_isRequesting)
+                const SizedBox(
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(
@@ -631,27 +683,24 @@ class _TransitHomeViewState extends State<TransitHomeView> {
                     strokeWidth: 2,
                   ),
                 )
-              : const Icon(Icons.flash_on, color: Colors.white),
-          label: Text(
-            _isRequesting ? 'Requesting...' : 'Request EV Cart Now',
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.emerald,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            elevation: 2,
+              else
+                const Icon(Icons.flash_on, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                _isRequesting ? 'Requesting...' : 'Request EV Cart Now',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
           ),
         ),
       ],
-    ),
-  );
+    );
+  }
+
   Widget _stopDropdown({
     required String label,
     required IconData icon,
@@ -659,7 +708,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
     required String value,
     required ValueChanged<String?> onChanged,
   }) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
     decoration: BoxDecoration(
       color: const Color(0xFFF9FAFB),
       borderRadius: BorderRadius.circular(12),
@@ -667,7 +716,7 @@ class _TransitHomeViewState extends State<TransitHomeView> {
     ),
     child: Row(
       children: [
-        Icon(icon, color: iconColor, size: 20),
+        Icon(icon, color: iconColor, size: 18),
         const SizedBox(width: 10),
         Expanded(
           child: DropdownButtonHideUnderline(
@@ -695,7 +744,6 @@ class _TransitHomeViewState extends State<TransitHomeView> {
       ],
     ),
   );
-
   Widget _daySelectorBar() {
     final activeKey = _controller.selectedScheduleDayKey;
     final isCustom = activeKey == 'custom';
